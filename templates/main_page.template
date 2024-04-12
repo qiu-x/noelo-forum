@@ -1,0 +1,30 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="always" />
+  <meta name="theme-color" content="#ADADAD" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <title>NO ELO - Forum</title>
+  <link rel="stylesheet" href="/content/style.css" media="all" />
+</head>
+<body>
+  <header>
+    <h1>
+      <img style="width: 50px; height: 50px; image-rendering: pixelated;" src="/favicon.ico" alt="NO ELO Icon">
+      <div>NO ELO - Forum</div>
+    </h1>
+  </header>
+  <main>
+    {{range .}}
+      <div class="news-item">
+        <h2><a href="#">{{ .Title }}</a></h2>
+        <p class="metadata">by {{ .Author }} | 2 hours ago | 100 comments</p>
+      </div>
+    {{end}}
+  </main>
+</body>
+</html>
