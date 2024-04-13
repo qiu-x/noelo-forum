@@ -20,12 +20,21 @@ header h1 {
   margin: 0px;
 }
 
-header h4 {
+header nav {
   margin: 0px;
   margin-top: 5px;
   word-spacing: 3px;
   color: #aaa;
 }
+
+header nav a:hover {
+  border-bottom: 3px solid #de0000;
+}
+
+header nav a.active {
+  border-bottom: 3px solid #de0000;
+}
+
 header a {
   color: #aaa;
   text-decoration: none;

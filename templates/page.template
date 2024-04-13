@@ -16,20 +16,15 @@
       <img style="width: 50px; height: 50px; image-rendering: pixelated;" src="/favicon.ico" alt="NO ELO Icon">
       <div>NO ELO</div>
     </h1>
-    <h4>
-      <a href="/active">Aktywne</a>
-      <a href="/news">Newsy</a>
-      <a href="/projects">Projekty</a>
-      <a href="/random">Random</a>
-    </h4>
+    <nav>
+      <a class="{{ if eq .PageName "active" }}active{{ end }}" href="/active">Aktywne</a>
+      <a class="{{ if eq .PageName "news" }}active{{ end }}" href="/news">Newsy</a>
+      <a class="{{ if eq .PageName "projects" }}active{{ end }}" href="/projects">Projekty</a>
+      <a class="{{ if eq .PageName "random" }}active{{ end }}" href="/random">Random</a>
+    </nav>
   </header>
   <main>
-    {{range .}}
-      <div class="news-item">
-        <h2><a href="#">{{ .Title }}</a></h2>
-        <p class="metadata">by {{ .Author }} | 2 hours ago | 100 comments</p>
-      </div>
-    {{end}}
+    {{template "pagecontent" .Content}}
   </main>
 </body>
 </html>

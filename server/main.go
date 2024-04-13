@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -75,7 +74,10 @@ func MainPageHandler() http.Handler {
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request, i int) {
-	w.Write([]byte("404 Not found"))
+	_, err := w.Write([]byte("404 Not found"))
+	if err != nil {
+		log.Println("Failed to server 404 page")
+	}
 }
 
 func main() {
@@ -89,7 +91,7 @@ func main() {
 	})
 
 	mux.Handle("/", ChainedHandlers(CheckMethod("GET"), MainPageHandler()))
-	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.MainPage{}))
+	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.Active{}))
 
 	s := &http.Server{
 		Addr:           ":" + PORT,
