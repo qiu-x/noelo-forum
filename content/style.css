@@ -17,6 +17,18 @@ header h1 {
   display: flex;
   align-items: center;
   justify-content: center; /* Center horizontally */
+  margin: 0px;
+}
+
+header h4 {
+  margin: 0px;
+  margin-top: 5px;
+  word-spacing: 3px;
+  color: #aaa;
+}
+header a {
+  color: #aaa;
+  text-decoration: none;
 }
 
 header img {

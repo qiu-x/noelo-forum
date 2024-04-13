@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
 	// "forumapp/limit"
 	"forumapp/pages"
 )
@@ -54,7 +56,7 @@ func CheckMethod(t string) http.Handler {
 	})
 }
 
-func ChainHandlers(chain ...http.Handler) http.Handler {
+func ChainedHandlers(chain ...http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, v := range chain {
 			v.ServeHTTP(w, r)
@@ -62,6 +64,19 @@ func ChainHandlers(chain ...http.Handler) http.Handler {
 	})
 }
 
+func MainPageHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	    if r.URL.Path != "/" {
+	        NotFoundHandler(w, r, http.StatusNotFound)
+	        return
+	    }
+		http.Redirect(w, r, "/active", http.StatusSeeOther)
+	})
+}
+
+func NotFoundHandler(w http.ResponseWriter, r *http.Request, i int) {
+	w.Write([]byte("404 Not found"))
+}
 
 func main() {
 	// limiter := limit.NewIPRateLimiter(0.075, 7) // For forum posts, etc...
@@ -72,7 +87,9 @@ func main() {
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../content/favicon.ico")
 	})
-	mux.Handle("/", ChainHandlers(CheckMethod("GET"), &pages.MainPage{}))
+
+	mux.Handle("/", ChainedHandlers(CheckMethod("GET"), MainPageHandler()))
+	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.MainPage{}))
 
 	s := &http.Server{
 		Addr:           ":" + PORT,
