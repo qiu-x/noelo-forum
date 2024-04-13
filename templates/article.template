@@ -1,0 +1,7 @@
+{{define "pagecontent"}}
+  <div class="news-item">
+    <h2><a href="#">{{ .Title }}</a></h2>
+    <p class="metadata">by {{ .Author }} | 2 hours ago | 100 comments</p>
+    <div>{{ .Text }}</div>
+  </div>
+{{end}}

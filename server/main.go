@@ -65,10 +65,11 @@ func ChainedHandlers(chain ...http.Handler) http.Handler {
 
 func MainPageHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	    if r.URL.Path != "/" {
-	        NotFoundHandler(w, r, http.StatusNotFound)
-	        return
-	    }
+		log.Println("Bad url:", r.URL.Path)
+		if r.URL.Path != "/" {
+			NotFoundHandler(w, r, http.StatusNotFound)
+			return
+		}
 		http.Redirect(w, r, "/active", http.StatusSeeOther)
 	})
 }
@@ -92,6 +93,7 @@ func main() {
 
 	mux.Handle("/", ChainedHandlers(CheckMethod("GET"), MainPageHandler()))
 	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.Active{}))
+	mux.Handle("/u/qiu/posts:1234", ChainedHandlers(CheckMethod("GET"), &pages.User{}))
 
 	s := &http.Server{
 		Addr:           ":" + PORT,

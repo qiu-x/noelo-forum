@@ -9,9 +9,9 @@ import (
 type Active struct{}
 
 func (p *Active) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	page := struct{
+	page := struct {
 		PageName string
-		Content []struct {
+		Content  []struct {
 			Title  string
 			Author string
 		}
