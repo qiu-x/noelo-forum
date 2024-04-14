@@ -67,18 +67,11 @@ func MainPageHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Bad url:", r.URL.Path)
 		if r.URL.Path != "/" {
-			NotFoundHandler(w, r, http.StatusNotFound)
+			pages.NotFoundHandler(w, r)
 			return
 		}
 		http.Redirect(w, r, "/active", http.StatusSeeOther)
 	})
-}
-
-func NotFoundHandler(w http.ResponseWriter, r *http.Request, i int) {
-	_, err := w.Write([]byte("404 Not found"))
-	if err != nil {
-		log.Println("Failed to server 404 page")
-	}
 }
 
 func main() {
@@ -93,7 +86,7 @@ func main() {
 
 	mux.Handle("/", ChainedHandlers(CheckMethod("GET"), MainPageHandler()))
 	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.Active{}))
-	mux.Handle("/u/qiu/posts:1234", ChainedHandlers(CheckMethod("GET"), &pages.User{}))
+	mux.Handle("/u/", http.StripPrefix("/u", ChainedHandlers(CheckMethod("GET"), &pages.User{})))
 
 	s := &http.Server{
 		Addr:           ":" + PORT,
