@@ -29,7 +29,7 @@ func (p *Active) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Temporary hack to get all articles listed on the main page
+// Temporary hack to get all articles listed on the "active" page
 func getAllArticles() []struct {
 	Title    string
 	Author   string
