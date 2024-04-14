@@ -14,8 +14,9 @@ func (p *Active) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	page := struct {
 		PageName string
 		Content  []struct {
-			Title  string
-			Author string
+			Title    string
+			Author   string
+			PostLink string
 		}
 	}{PageName: "active"}
 
@@ -30,12 +31,14 @@ func (p *Active) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Temporary hack to get all articles listed on the main page
 func getAllArticles() []struct {
-	Title  string
-	Author string
+	Title    string
+	Author   string
+	PostLink string
 } {
 	var articles []struct {
-		Title  string
-		Author string
+		Title    string
+		Author   string
+		PostLink string
 	}
 	dirPath := "../storage/users"
 	users, err := os.ReadDir(dirPath)
@@ -43,25 +46,30 @@ func getAllArticles() []struct {
 		return articles
 	}
 
-	for _, useraData := range users {
-		if !useraData.IsDir() {
+	for _, userData := range users {
+		if !userData.IsDir() {
 			continue
 		}
-		userDataDir := filepath.Join(dirPath, useraData.Name(), "post")
-		userArticles, err := os.ReadDir(userDataDir)
+		userPosts := filepath.Join(dirPath, userData.Name(), "post")
+		userPostsDir, err := os.ReadDir(userPosts)
 		if err != nil {
 			continue
 		}
-		for _, v := range userArticles {
-			title, err := os.ReadFile(filepath.Join(userDataDir, v.Name(), "title"))
-			log.Println("title:", filepath.Join(userDataDir, v.Name(), "title"))
+		for _, v := range userPostsDir {
+			title, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "title"))
+			log.Println("title:", filepath.Join(userPosts, v.Name(), "title"))
 			if err != nil {
 				continue
 			}
 			articles = append(articles, struct {
-				Title  string
-				Author string
-			}{string(title), useraData.Name()})
+				Title    string
+				Author   string
+				PostLink string
+			}{
+				string(title),
+				userData.Name(),
+				"/u/" + userData.Name() + "/post:" + v.Name(),
+			})
 		}
 	}
 
