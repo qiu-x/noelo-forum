@@ -57,7 +57,6 @@ func getAllArticles() []struct {
 		}
 		for _, v := range userPostsDir {
 			title, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "title"))
-			log.Println("title:", filepath.Join(userPosts, v.Name(), "title"))
 			if err != nil {
 				continue
 			}
