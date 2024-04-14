@@ -36,7 +36,7 @@ type PostPage[T PostType] struct{
 }
 
 func (p *User) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println("resource fetched from url:", r.URL.Path)
+	log.Println("resource url:", r.URL.Path)
 	urlparts := strings.Split(r.URL.Path, "/")
 
 	user := urlparts[1]
@@ -49,7 +49,7 @@ func (p *User) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resourceType := resourceURI[0]
 
 	resourcePath, err :=  url.JoinPath(user, resourceType, resourceId)
-	resourcePath = "../storage/" + resourcePath
+	resourcePath = "../storage/users/" + resourcePath
 
 	if err != nil {
 		NotFoundHandler(w, r)

@@ -72,6 +72,12 @@ main {
   font-size: 14px;
 }
 
+article {
+  font-family: monospace;
+  font-size: large;
+  white-space: break-spaces;
+}
+
 @media only screen and (max-width: 600px) {
   main {
     padding: 0 10px;
