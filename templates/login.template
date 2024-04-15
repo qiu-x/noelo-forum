@@ -11,8 +11,8 @@
     }
 
     form {
-      margin: 5% auto 15% auto; /* 5% from the top, 15% from the bottom and centered */
-      width: 80%; /* Could be more or less, depending on screen size */
+      margin: 5% auto 15% auto;
+      width: 85%;
     }
   </style>
   <form action="/login" method="post">
