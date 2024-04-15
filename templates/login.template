@@ -1,0 +1,32 @@
+{{define "pagecontent"}}
+  <style>
+    input[type=text], input[type=password] {
+      width: 100%;
+      padding: 12px 20px;
+      margin: 8px 0;
+      display: inline-block;
+      box-sizing: border-box;
+      color: #ddd;
+      background-color: #1e1e1e;
+    }
+
+    form {
+      margin: 5% auto 15% auto; /* 5% from the top, 15% from the bottom and centered */
+      width: 80%; /* Could be more or less, depending on screen size */
+    }
+  </style>
+  <form action="/login" method="post">
+    <div class="container">
+      <label for="uname"><b>Username</b></label>
+      <input type="text" placeholder="Enter Username" name="uname" required>
+      <label for="psw"><b>Password</b></label>
+      <input type="password" placeholder="Enter Password" name="psw" required>
+      <button type="submit">Login</button>
+    </div>
+    <div style="margin-top: 10px">
+      <span class="psw">Nie możesz się zalogować? <a href="#">Zresetuj hasło.</a></span>
+      <br><br>
+      <span class="psw">Nie masz konta? <a href="#">Zarejestruj się!</a></span>
+    </div>
+  </form>
+{{end}}

@@ -88,6 +88,8 @@ func main() {
 	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.Active{}))
 	mux.Handle("/u/", http.StripPrefix("/u", ChainedHandlers(CheckMethod("GET"), &pages.User{})))
 
+	mux.HandleFunc("/login", pages.LoginHandler)
+
 	s := &http.Server{
 		Addr:           ":" + PORT,
 		Handler:        mux,

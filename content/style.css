@@ -58,6 +58,10 @@ main {
   margin: 0;
 }
 
+a {
+  color: rgb(138, 177, 255)
+}
+
 .news-item a {
   color: #fff;
   text-decoration: none;
@@ -76,6 +80,18 @@ main {
   float: right;
   margin: 0px;
   margin-left: -100%;
+}
+
+button {
+  background-color: #1e1e1e;
+  border: 1px solid #ddd;
+  color: #fff;
+  cursor: pointer;
+  display: inline-block;
+  line-height: 18px;
+  padding: 2px 10px 2px 10px;
+  text-align: center;
+  text-decoration: none;
 }
 
 article {
