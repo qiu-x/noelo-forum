@@ -72,6 +72,12 @@ main {
   font-size: 14px;
 }
 
+.login-indicator {
+  float: right;
+  margin: 0px;
+  margin-left: -100%;
+}
+
 article {
   font-family: monospace;
   font-size: large;
