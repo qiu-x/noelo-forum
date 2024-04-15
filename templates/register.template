@@ -1,0 +1,64 @@
+{{define "pagecontent"}}
+  <style>
+    input[type=text], input[type=password] {
+      width: 100%;
+      padding: 12px 20px;
+      margin: 8px 0;
+      display: inline-block;
+      box-sizing: border-box;
+      color: #ddd;
+      background-color: #1e1e1e;
+    }
+
+    form {
+      margin: 5% auto 15% auto;
+      width: 85%;
+    }
+
+    .error {
+      border: red 2px solid;
+      margin: 20p;
+      padding: 10px;
+    }
+
+    .success {
+      border: green 2px solid;
+      margin: 20p;
+      padding: 10px;
+    }
+  </style>
+  <form action="/register" method="post">
+
+    {{ if eq .RegisterStatus "invalid" }}
+    <label class="error">
+      Error: Invalid registartion request
+    </label>
+    <br><br>
+    {{ end }}
+    {{ if eq .RegisterStatus "exists" }}
+    <label class="error">
+      Error: Account already exists
+    </label>
+    <br><br>
+    {{ end }}
+    {{ if eq .RegisterStatus "success" }}
+    <span class="success">
+      Rejestracja pomyślna
+    </span>
+    <br><br>
+    {{ end }}
+
+    <div class="container">
+      <label for="email"><b>Email</b></label>
+      <input type="text" name="email" required>
+      <label for="uname"><b>Username</b></label>
+      <input type="text" name="uname" required>
+      <label for="psw"><b>Hasło</b></label>
+      <input type="password" name="psw" required>
+      <button type="submit">Register</button>
+    </div>
+    <div style="margin-top: 10px">
+      <span class="psw">Masz już konto? <a href="/login">Zaloguj się.</a></span>
+    </div>
+  </form>
+{{end}}

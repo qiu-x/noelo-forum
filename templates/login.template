@@ -24,9 +24,9 @@
       <button type="submit">Login</button>
     </div>
     <div style="margin-top: 10px">
-      <span class="psw">Nie możesz się zalogować? <a href="#">Zresetuj hasło.</a></span>
-      <br><br>
-      <span class="psw">Nie masz konta? <a href="#">Zarejestruj się!</a></span>
+      <!-- TODO: Add password reset -->
+      <!-- <span class="psw">Nie możesz się zalogować? <a href="#todo">Zresetuj hasło.</a></span> -->
+      <span class="psw">Nie masz konta? <a href="/register">Zarejestruj się!</a></span>
     </div>
   </form>
 {{end}}
