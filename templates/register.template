@@ -41,6 +41,12 @@
     </label>
     <br><br>
     {{ end }}
+    {{ if eq .RegisterStatus "unknown" }}
+    <label class="error">
+      Error: An unexpected error has occured
+    </label>
+    <br><br>
+    {{ end }}
     {{ if eq .RegisterStatus "success" }}
     <span class="success">
       Rejestracja pomyślna
