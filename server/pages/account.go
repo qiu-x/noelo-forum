@@ -3,13 +3,33 @@ package pages
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+var sessions = map[string]session{}
+
+type session struct {
+	username string
+}
+
+func generateSessionToken() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result string
+	for i := 0; i < 20; i++ {
+		digit := r.Intn(10)
+		result += strconv.Itoa(digit)
+	}
+	return result
+}
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
@@ -36,12 +56,36 @@ func loginPage(w http.ResponseWriter) {
 }
 
 func loginAction(w http.ResponseWriter, r *http.Request) {
-	panic("unimplemented")
-	// username := r.FormValue("uname")
-	// pass := r.FormValue("psw")
+	username := r.FormValue("uname")
+	pass := r.FormValue("psw")
+	log.Println("psw:", string(pass))
 
-	// // Sanitize username
-	// username = strings.Replace(username, "/", "∕", -1)
+	// Sanitize username
+	username = strings.Replace(username, "/", "∕", -1)
+
+	userdir := "../storage/users/" + username
+	storedPass, _ := os.ReadFile(userdir + "/pass")
+
+	err := bcrypt.CompareHashAndPassword(storedPass, []byte(pass))
+	if err != nil {
+		// TODO: Handle login failure
+		log.Println("Bad creds!")
+		w.Write([]byte("Bad creds!"))
+		return
+	}
+
+	sessionToken := generateSessionToken()
+
+	sessions[sessionToken] = session{
+		username: username,
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  "session_token",
+		Value: sessionToken,
+	})
+
+	http.Redirect(w, r, "/active", http.StatusSeeOther)
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
