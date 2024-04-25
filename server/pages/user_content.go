@@ -96,7 +96,7 @@ func renderPost(resourcePath string, user string, w http.ResponseWriter) {
 		return
 	}
 	comments, err := getReplies(resourcePath, "comments")
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		log.Println("failed to get post comments", err)
 		return
 	}
