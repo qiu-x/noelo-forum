@@ -4,4 +4,14 @@
     <p class="metadata">by {{ .Author }} | 2 hours ago | 100 comments</p>
     <article>{{ .Text }}</article>
   </div>
+  <br>
+  <form action="/comment" method="post">
+    <div style="width: 100%;">
+      <textarea rows="4" name="comment" id="comment"></textarea>
+    </div>
+    <br>
+    <button type="submit">Post</button>
+  </form>
+  <br>
+  {{template "comments" .Comments}}
 {{end}}

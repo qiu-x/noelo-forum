@@ -83,7 +83,7 @@ a {
 }
 
 button {
-  background-color: #1e1e1e;
+  background-color: #333;
   border: 1px solid #ddd;
   color: #fff;
   cursor: pointer;
@@ -98,6 +98,19 @@ article {
   font-family: monospace;
   font-size: large;
   white-space: break-spaces;
+}
+
+textarea {
+  background-color: #333;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+}
+
+.comment {
+  border-left: solid 1px;
+  padding-left: 20px;
 }
 
 @media only screen and (max-width: 600px) {

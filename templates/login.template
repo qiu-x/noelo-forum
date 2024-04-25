@@ -7,7 +7,7 @@
       display: inline-block;
       box-sizing: border-box;
       color: #ddd;
-      background-color: #1e1e1e;
+      background-color: #333;
     }
 
     form {

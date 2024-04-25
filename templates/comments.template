@@ -1,0 +1,5 @@
+{{define "comments"}}
+  {{range .}}
+    {{template "comment" .}}
+  {{end}}
+{{end}}

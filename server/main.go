@@ -86,7 +86,7 @@ func main() {
 
 	mux.Handle("/", ChainedHandlers(CheckMethod("GET"), MainPageHandler()))
 	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.Active{}))
-	mux.Handle("/u/", http.StripPrefix("/u", ChainedHandlers(CheckMethod("GET"), &pages.User{})))
+	mux.Handle("/u/", http.StripPrefix("/u", ChainedHandlers(CheckMethod("GET"), &pages.UserContent{})))
 
 	// Account related stuff
 	mux.HandleFunc("/login", pages.LoginHandler)
