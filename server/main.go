@@ -45,16 +45,6 @@ func FileServerFilter() http.Handler {
 	})
 }
 
-func CheckMethod(t string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if t != r.Method {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
-				http.StatusMethodNotAllowed)
-			return
-		}
-	})
-}
-
 func ChainedHandlers(chain ...http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, v := range chain {
@@ -79,14 +69,14 @@ func main() {
 
 	mux := http.NewServeMux()
 	fs := http.FileServer(http.Dir("../content/"))
-	mux.Handle("/content/", http.StripPrefix("/content", fs))
-	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /content/", http.StripPrefix("/content", fs))
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../content/favicon.ico")
 	})
 
-	mux.Handle("/", ChainedHandlers(CheckMethod("GET"), MainPageHandler()))
-	mux.Handle("/active", ChainedHandlers(CheckMethod("GET"), &pages.Active{}))
-	mux.Handle("/u/", http.StripPrefix("/u", ChainedHandlers(CheckMethod("GET"), &pages.UserContent{})))
+	mux.Handle("/", MainPageHandler())
+	mux.Handle("GET /active", &pages.Active{})
+	mux.Handle("GET /u/", http.StripPrefix("/u", &pages.UserContent{}))
 
 	// Account related stuff
 	mux.HandleFunc("/login", pages.LoginHandler)
