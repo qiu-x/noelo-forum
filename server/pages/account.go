@@ -2,40 +2,17 @@ package pages
 
 import (
 	"errors"
-	"fmt"
+	"forumapp/session"
 	"html/template"
 	"log"
-	"math/rand"
 	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
-	"golang.org/x/crypto/bcrypt"
 )
-
-var sessions = map[string]session{}
-
-type session struct {
-	username string
-}
-
-func generateSessionToken() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	var result string
-	for range 50 {
-		digit := r.Intn(10)
-		result += strconv.Itoa(digit)
-	}
-	return result
-}
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		loginAction(w, r)
 	} else if r.Method == "GET" {
-		loginPage(w, r)
+		loginPage(w, r, "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -43,36 +20,20 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func loginPage(w http.ResponseWriter, r *http.Request) {
-	isLoggedIn := false
-	username := ""
-
-	sessionCookie, err := r.Cookie("session_token")
-	if err == nil {
-		if v, ok := sessions[sessionCookie.Value]; ok {
-			username = v.username
-			isLoggedIn = true
-		}
+func loginPage(w http.ResponseWriter, r *http.Request, status string) {
+	page := PageBase[struct{ LoginStatus string }]{
+		Content:    struct{ LoginStatus string }{status},
 	}
 
-	page := struct {
-		PageName   string
-		Username   string
-		IsLoggedIn bool
-		Content    []struct {
-			Title    string
-			Author   string
-			PostLink string
-		}
-	}{
-		Username:   username,
-		IsLoggedIn: isLoggedIn,
+	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
+	if err == nil {
+		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
 	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/login.template"))
 	err = t.Execute(w, page)
 	if err != nil {
-		log.Println("\"login\" page generation failed")
+		log.Println("\"login\" page generation failed:", err)
 	}
 }
 
@@ -81,28 +42,19 @@ func loginAction(w http.ResponseWriter, r *http.Request) {
 	pass := r.FormValue("psw")
 	log.Println("psw:", string(pass))
 
-	// Sanitize username
-	username = strings.Replace(username, "/", "∕", -1)
-
-	userdir := "../storage/users/" + username
-	storedPass, _ := os.ReadFile(userdir + "/pass")
-
-	err := bcrypt.CompareHashAndPassword(storedPass, []byte(pass))
+	sessionToken, err := session.Auth(username, pass)
 	if err != nil {
-		// TODO: Handle login failure
-		log.Println("Bad creds!")
-		w.Write([]byte("Bad creds!"))
+		loginPage(w, r, "Invalid credentials")
+
+		http.SetCookie(w, &http.Cookie{
+			Name:  session.SESSION_COOKIE,
+			Value: "",
+		})
 		return
 	}
 
-	sessionToken := generateSessionToken()
-
-	sessions[sessionToken] = session{
-		username: username,
-	}
-
 	http.SetCookie(w, &http.Cookie{
-		Name:  "session_token",
+		Name:  session.SESSION_COOKIE,
 		Value: sessionToken,
 	})
 
@@ -113,7 +65,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		registerAction(w, r)
 	} else if r.Method == "GET" {
-		registerPage(w, r, "none")
+		registerPage(w, r, "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -122,106 +74,40 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func registerPage(w http.ResponseWriter, r *http.Request, status string) {
-	isLoggedIn := false
-	username := ""
-
-	sessionCookie, err := r.Cookie("session_token")
-	if err == nil {
-		if v, ok := sessions[sessionCookie.Value]; ok {
-			username = v.username
-			isLoggedIn = true
-		}
+	page := PageBase[struct{ RegisterStatus string }]{
+		Content: struct{ RegisterStatus string }{status},
 	}
 
-	page := struct {
-		PageName   string
-		Username   string
-		IsLoggedIn bool
-		Content    struct {
-			RegisterStatus string
-		}
-	}{
-		Username:   username,
-		IsLoggedIn: isLoggedIn,
-		PageName:   "",
-		Content:    struct{ RegisterStatus string }{status},
+	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
+	if err == nil {
+		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
 	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/register.template"))
 	err = t.Execute(w, page)
 	if err != nil {
-		log.Println("\"register\" page generation failed")
+		log.Println("\"register\" page generation failed:", err)
 	}
 }
-
-var (
-	ErrRegister        = errors.New("registration error")
-	ErrInvalidUserData = fmt.Errorf("invalid user data: %w", ErrRegister)
-	ErrUserExists      = fmt.Errorf("user already exists: %w", ErrRegister)
-)
 
 func registerAction(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	username := r.FormValue("uname")
 	pass := r.FormValue("psw")
 
-	err := addUser(email, username, pass)
+	err := session.AddUser(email, username, pass)
 
-	if errors.Is(err, ErrInvalidUserData) {
-		registerPage(w, r, "invalid")
+	if errors.Is(err, session.ErrInvalidUserData) {
+		registerPage(w, r, "Invalid registartion request")
 		return
-	} else if errors.Is(err, ErrUserExists) {
-		registerPage(w, r, "exists")
+	} else if errors.Is(err, session.ErrUserExists) {
+		registerPage(w, r, "Account already exists")
 		return
 	} else if err != nil {
 		log.Println("Account creation error:", err)
-		registerPage(w, r, "unknown") // should never happen
+		registerPage(w, r, "An unexpected error has occured") // should never happen
 		return
 	}
 
 	registerPage(w, r, "success")
-}
-
-func addUser(email, username, pass string) error {
-	// Sanitize user data
-	username = strings.Replace(username, "/", "∕", -1)
-	username = strings.TrimSpace(username)
-
-	if !strings.Contains(email, "@") {
-		return ErrInvalidUserData
-	}
-
-	if email == "" || pass == "" || username == "" {
-		return ErrInvalidUserData
-	}
-
-	userdir := "../storage/users/" + username
-	if _, err := os.Stat(userdir); !os.IsNotExist(err) {
-		return ErrUserExists
-	}
-
-	// Create the directory
-	err := os.Mkdir(userdir, 0755)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("User directory created successfully:", userdir)
-
-	f, err := os.Create(userdir + "/email")
-	if err != nil {
-		return err
-	}
-	f.WriteString(email)
-	f.Close()
-
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), 8)
-	f, err = os.Create(userdir + "/pass")
-	if err != nil {
-		return err
-	}
-	f.Write(hashed)
-	f.Close()
-
-	return nil
 }

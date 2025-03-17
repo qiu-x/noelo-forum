@@ -29,21 +29,9 @@
   </style>
   <form action="/register" method="post">
 
-    {{ if eq .RegisterStatus "invalid" }}
+    {{ if not (eq .RegisterStatus "") }}
     <label class="error">
-      Error: Invalid registartion request
-    </label>
-    <br><br>
-    {{ end }}
-    {{ if eq .RegisterStatus "exists" }}
-    <label class="error">
-      Error: Account already exists
-    </label>
-    <br><br>
-    {{ end }}
-    {{ if eq .RegisterStatus "unknown" }}
-    <label class="error">
-      Error: An unexpected error has occured
+      Error: {{ .RegisterStatus }}
     </label>
     <br><br>
     {{ end }}

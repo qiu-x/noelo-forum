@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"forumapp/session"
 	"html/template"
 	"log"
 	"net/http"
@@ -8,55 +9,39 @@ import (
 	"path/filepath"
 )
 
-type Active struct{}
+type ArticleItem struct {
+	Title    string
+	Author   string
+	PostLink string
+}
 
-func (p *Active) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	isLoggedIn := false
-	username := ""
+type ItemType interface {
+	ArticleItem
+}
 
-	sessionCookie, err := r.Cookie("session_token")
-	if err == nil {
-		if v, ok := sessions[sessionCookie.Value]; ok {
-			username = v.username
-			isLoggedIn = true
-		}
-	}
+type SectionPage[T ItemType] = PageBase[[]T]
 
-	page := struct {
-		PageName   string
-		Username   string
-		IsLoggedIn bool
-		Content    []struct {
-			Title    string
-			Author   string
-			PostLink string
-		}
-	}{
+func ActiveSection(w http.ResponseWriter, r *http.Request) {
+	page := SectionPage[ArticleItem]{
 		PageName:   "active",
-		Username:   username,
-		IsLoggedIn: isLoggedIn,
+		Content: getAllArticles(),
 	}
 
-	page.Content = getAllArticles()
+	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
+	if err == nil {
+		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
+	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/article_list.template"))
 	err = t.Execute(w, page)
 	if err != nil {
-		log.Println("\"active\" page generation failed")
+		log.Println("\"active\" page generation failed:", err)
 	}
 }
 
 // Temporary hack to get all articles listed on the "active" page
-func getAllArticles() []struct {
-	Title    string
-	Author   string
-	PostLink string
-} {
-	var articles []struct {
-		Title    string
-		Author   string
-		PostLink string
-	}
+func getAllArticles() []ArticleItem {
+	var articles []ArticleItem
 	dirPath := "../storage/users"
 	users, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -77,11 +62,7 @@ func getAllArticles() []struct {
 			if err != nil {
 				continue
 			}
-			articles = append(articles, struct {
-				Title    string
-				Author   string
-				PostLink string
-			}{
+			articles = append(articles, ArticleItem{
 				string(title),
 				userData.Name(),
 				"/u/" + userData.Name() + "/post:" + v.Name(),

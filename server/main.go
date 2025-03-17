@@ -21,7 +21,6 @@ const HELP = ` Flags:
 
 var (
 	PORT    string
-	API_KEY string
 )
 
 func init() {
@@ -75,12 +74,12 @@ func main() {
 	})
 
 	mux.Handle("/", MainPageHandler())
-	mux.Handle("GET /active", &pages.Active{})
-	mux.Handle("GET /u/", http.StripPrefix("/u", &pages.UserContent{}))
+	mux.HandleFunc("GET /active", pages.ActiveSection)
 
-	// Account related stuff
 	mux.HandleFunc("/login", pages.LoginHandler)
 	mux.HandleFunc("/register", pages.RegisterHandler)
+
+	mux.Handle("GET /u/", http.StripPrefix("/u", http.HandlerFunc(pages.UserContent)))
 
 	s := &http.Server{
 		Addr:           ":" + PORT,

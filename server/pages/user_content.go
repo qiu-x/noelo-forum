@@ -2,6 +2,7 @@ package pages
 
 import (
 	"errors"
+	"forumapp/session"
 	"html/template"
 	"log"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-type UserContent struct{}
 
 // Matches commnet.template
 type Comment struct {
@@ -42,14 +41,9 @@ type PostType interface {
 	TextPost | LinkPost
 }
 
-type PostPage[T PostType] struct {
-	IsLoggedIn bool
-	Username string
-	PageName string
-	Content  T
-}
+type PostPage[T PostType] = PageBase[T]
 
-func (p *UserContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func UserContent(w http.ResponseWriter, r *http.Request) {
 	log.Println("resource url:", r.URL.Path)
 
 	user, resourceType, resourcePath, err := parseUserResourceURI(r.URL.Path)
@@ -62,7 +56,7 @@ func (p *UserContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		renderPost(resourcePath, user, w, r)
 	} else if resourceType == "comment" {
 		// TODO: render standalone comments (direct link to comment)
-		// renderComments(resourcePath, user, w)
+		// renderComment(resourcePath, user, w)
 	}
 }
 
@@ -104,12 +98,10 @@ func renderPost(resourcePath string, user string, w http.ResponseWriter, r *http
 	}
 
 	var page PostPage[TextPost]
-	sessionCookie, err := r.Cookie("session_token")
+
+	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
 	if err == nil {
-		if v, ok := sessions[sessionCookie.Value]; ok {
-			page.Username = v.username
-			page.IsLoggedIn = true
-		}
+		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
 	}
 
 	page.Content = TextPost{

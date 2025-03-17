@@ -14,8 +14,22 @@
       margin: 5% auto 15% auto;
       width: 85%;
     }
+
+    .error {
+      border: red 2px solid;
+      margin: 20p;
+      padding: 10px;
+    }
   </style>
   <form action="/login" method="post">
+
+    {{ if not (eq .LoginStatus "") }}
+    <label class="error">
+      Error: {{ .LoginStatus }}
+    </label>
+    <br><br>
+    {{ end }}
+
     <div class="container">
       <label for="uname"><b>Username</b></label>
       <input type="text" name="uname" required>
@@ -24,7 +38,6 @@
       <button type="submit">Login</button>
     </div>
     <div style="margin-top: 10px">
-      <!-- TODO: Add password reset -->
       <!-- <span class="psw">Nie możesz się zalogować? <a href="#todo">Zresetuj hasło.</a></span> -->
       <span class="psw">Nie masz konta? <a href="/register">Zarejestruj się!</a></span>
     </div>
