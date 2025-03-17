@@ -43,6 +43,8 @@ type PostType interface {
 }
 
 type PostPage[T PostType] struct {
+	IsLoggedIn bool
+	Username string
 	PageName string
 	Content  T
 }
@@ -57,7 +59,7 @@ func (p *UserContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resourceType == "post" {
-		renderPost(resourcePath, user, w)
+		renderPost(resourcePath, user, w, r)
 	} else if resourceType == "comment" {
 		// TODO: render standalone comments (direct link to comment)
 		// renderComments(resourcePath, user, w)
@@ -84,7 +86,7 @@ func parseUserResourceURI(path string) (user string, resourceType string, resour
 	return
 }
 
-func renderPost(resourcePath string, user string, w http.ResponseWriter) {
+func renderPost(resourcePath string, user string, w http.ResponseWriter, r *http.Request) {
 	title, err := os.ReadFile(filepath.Join(resourcePath, "title"))
 	if err != nil {
 		log.Println("failed to get post title", err)
@@ -102,6 +104,14 @@ func renderPost(resourcePath string, user string, w http.ResponseWriter) {
 	}
 
 	var page PostPage[TextPost]
+	sessionCookie, err := r.Cookie("session_token")
+	if err == nil {
+		if v, ok := sessions[sessionCookie.Value]; ok {
+			page.Username = v.username
+			page.IsLoggedIn = true
+		}
+	}
+
 	page.Content = TextPost{
 		Title:    string(title),
 		Text:     string(text),

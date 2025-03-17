@@ -24,7 +24,7 @@ type session struct {
 func generateSessionToken() string {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var result string
-	for i := 0; i < 20; i++ {
+	for range 50 {
 		digit := r.Intn(10)
 		result += strconv.Itoa(digit)
 	}
@@ -35,7 +35,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		loginAction(w, r)
 	} else if r.Method == "GET" {
-		loginPage(w)
+		loginPage(w, r)
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -43,13 +43,34 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func loginPage(w http.ResponseWriter) {
+func loginPage(w http.ResponseWriter, r *http.Request) {
+	isLoggedIn := false
+	username := ""
+
+	sessionCookie, err := r.Cookie("session_token")
+	if err == nil {
+		if v, ok := sessions[sessionCookie.Value]; ok {
+			username = v.username
+			isLoggedIn = true
+		}
+	}
+
 	page := struct {
-		PageName string
-		Content  struct{}
-	}{}
+		PageName   string
+		Username   string
+		IsLoggedIn bool
+		Content    []struct {
+			Title    string
+			Author   string
+			PostLink string
+		}
+	}{
+		Username:   username,
+		IsLoggedIn: isLoggedIn,
+	}
+
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/login.template"))
-	err := t.Execute(w, page)
+	err = t.Execute(w, page)
 	if err != nil {
 		log.Println("\"login\" page generation failed")
 	}
@@ -92,7 +113,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		registerAction(w, r)
 	} else if r.Method == "GET" {
-		registerPage(w, "none")
+		registerPage(w, r, "none")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -100,27 +121,44 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func registerPage(w http.ResponseWriter, status string) {
+func registerPage(w http.ResponseWriter, r *http.Request, status string) {
+	isLoggedIn := false
+	username := ""
+
+	sessionCookie, err := r.Cookie("session_token")
+	if err == nil {
+		if v, ok := sessions[sessionCookie.Value]; ok {
+			username = v.username
+			isLoggedIn = true
+		}
+	}
+
 	page := struct {
-		PageName string
-		Content  struct {
+		PageName   string
+		Username   string
+		IsLoggedIn bool
+		Content    struct {
 			RegisterStatus string
 		}
-	}{}
-	page.Content = struct {
-		RegisterStatus string
-	}{status}
+	}{
+		Username:   username,
+		IsLoggedIn: isLoggedIn,
+		PageName:   "",
+		Content:    struct{ RegisterStatus string }{status},
+	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/register.template"))
-	err := t.Execute(w, page)
+	err = t.Execute(w, page)
 	if err != nil {
 		log.Println("\"register\" page generation failed")
 	}
 }
 
-var ErrRegister = errors.New("registration error")
-var ErrInvalidUserData = fmt.Errorf("invalid user data: %w", ErrRegister)
-var ErrUserExists = fmt.Errorf("user already exists: %w", ErrRegister)
+var (
+	ErrRegister        = errors.New("registration error")
+	ErrInvalidUserData = fmt.Errorf("invalid user data: %w", ErrRegister)
+	ErrUserExists      = fmt.Errorf("user already exists: %w", ErrRegister)
+)
 
 func registerAction(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
@@ -130,18 +168,18 @@ func registerAction(w http.ResponseWriter, r *http.Request) {
 	err := addUser(email, username, pass)
 
 	if errors.Is(err, ErrInvalidUserData) {
-		registerPage(w, "invalid")
+		registerPage(w, r, "invalid")
 		return
 	} else if errors.Is(err, ErrUserExists) {
-		registerPage(w, "exists")
+		registerPage(w, r, "exists")
 		return
 	} else if err != nil {
 		log.Println("Account creation error:", err)
-		registerPage(w, "unknown") // should never happen
+		registerPage(w, r, "unknown") // should never happen
 		return
 	}
 
-	registerPage(w, "success")
+	registerPage(w, r, "success")
 }
 
 func addUser(email, username, pass string) error {

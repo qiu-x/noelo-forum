@@ -11,19 +11,36 @@ import (
 type Active struct{}
 
 func (p *Active) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	isLoggedIn := false
+	username := ""
+
+	sessionCookie, err := r.Cookie("session_token")
+	if err == nil {
+		if v, ok := sessions[sessionCookie.Value]; ok {
+			username = v.username
+			isLoggedIn = true
+		}
+	}
+
 	page := struct {
-		PageName string
-		Content  []struct {
+		PageName   string
+		Username   string
+		IsLoggedIn bool
+		Content    []struct {
 			Title    string
 			Author   string
 			PostLink string
 		}
-	}{PageName: "active"}
+	}{
+		PageName:   "active",
+		Username:   username,
+		IsLoggedIn: isLoggedIn,
+	}
 
 	page.Content = getAllArticles()
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/article_list.template"))
-	err := t.Execute(w, page)
+	err = t.Execute(w, page)
 	if err != nil {
 		log.Println("\"active\" page generation failed")
 	}
