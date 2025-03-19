@@ -1,10 +1,11 @@
 package limit
 
 import (
-	"golang.org/x/time/rate"
 	"net"
 	"net/http"
 	"sync"
+
+	"golang.org/x/time/rate"
 )
 
 type IPRateLimiter struct {

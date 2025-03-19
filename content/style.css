@@ -106,6 +106,7 @@ textarea {
   box-sizing: border-box;
   width: 100%;
   resize: vertical;
+  color: white;
 }
 
 .comment {

@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-const SESSION_COOKIE = "session_token"
+const SessionCookie = "session_token"
 
-var sessions = map[string]session{}
+var (
+	sessions = map[string]session{}
+	mu       = sync.Mutex{}
+)
 
 type session struct {
 	username string
@@ -31,6 +36,7 @@ func generateSessionToken() string {
 }
 
 func CheckAuth(sessionToken string) (string, bool) {
+	// Reads from map are thread-safe
 	if v, ok := sessions[sessionToken]; ok {
 		return v.username, true
 	}
@@ -38,11 +44,14 @@ func CheckAuth(sessionToken string) (string, bool) {
 }
 
 func Auth(username, pass string) (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	// Sanitize username
 	username = strings.Replace(username, "/", "∕", -1)
 
-	userdir := "../storage/users/" + username
-	storedPass, _ := os.ReadFile(userdir + "/pass")
+	userdir := filepath.Join("../storage/users/", username)
+	storedPass, _ := os.ReadFile(filepath.Join(userdir, "/pass"))
 
 	err := bcrypt.CompareHashAndPassword(storedPass, []byte(pass))
 	if err != nil {
@@ -64,6 +73,10 @@ var (
 )
 
 func AddUser(email, username, pass string) error {
+	// Lock this part to avoid races
+	mu.Lock()
+	defer mu.Unlock()
+
 	// Sanitize user data
 	username = strings.Replace(username, "/", "∕", -1)
 	username = strings.TrimSpace(username)
@@ -76,32 +89,40 @@ func AddUser(email, username, pass string) error {
 		return ErrInvalidUserData
 	}
 
-	userdir := "../storage/users/" + username
+	userdir := filepath.Join("../storage/users/", username)
 	if _, err := os.Stat(userdir); !os.IsNotExist(err) {
 		return ErrUserExists
 	}
 
-	// Create the directory
+	// Create the directory and sub-directories
 	err := os.Mkdir(userdir, 0755)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(filepath.Join(userdir, "comment"), 0755)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(filepath.Join(userdir, "post"), 0755)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("User directory created successfully:", userdir)
 
-	f, err := os.Create(userdir + "/email")
+	f, err := os.Create(filepath.Join(userdir, "/email"))
 	if err != nil {
 		return err
 	}
-	f.WriteString(email)
+	_, _ = f.WriteString(email)
 	f.Close()
 
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), 8)
-	f, err = os.Create(userdir + "/pass")
+	f, err = os.Create(filepath.Join(userdir, "/pass"))
 	if err != nil {
 		return err
 	}
-	f.Write(hashed)
+	_, _ = f.Write(hashed)
 	f.Close()
 
 	return nil

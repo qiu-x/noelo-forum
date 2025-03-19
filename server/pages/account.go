@@ -9,9 +9,9 @@ import (
 )
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		loginAction(w, r)
-	} else if r.Method == "GET" {
+	} else if r.Method == http.MethodGet {
 		loginPage(w, r, "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
@@ -22,10 +22,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 func loginPage(w http.ResponseWriter, r *http.Request, status string) {
 	page := PageBase[struct{ LoginStatus string }]{
-		Content:    struct{ LoginStatus string }{status},
+		Content: struct{ LoginStatus string }{status},
 	}
 
-	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
+	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
 		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
 	}
@@ -40,21 +40,21 @@ func loginPage(w http.ResponseWriter, r *http.Request, status string) {
 func loginAction(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("uname")
 	pass := r.FormValue("psw")
-	log.Println("psw:", string(pass))
+	log.Println("psw:", pass)
 
 	sessionToken, err := session.Auth(username, pass)
 	if err != nil {
 		loginPage(w, r, "Invalid credentials")
 
 		http.SetCookie(w, &http.Cookie{
-			Name:  session.SESSION_COOKIE,
+			Name:  session.SessionCookie,
 			Value: "",
 		})
 		return
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:  session.SESSION_COOKIE,
+		Name:  session.SessionCookie,
 		Value: sessionToken,
 	})
 
@@ -62,9 +62,9 @@ func loginAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		registerAction(w, r)
-	} else if r.Method == "GET" {
+	} else if r.Method == http.MethodGet {
 		registerPage(w, r, "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
@@ -78,7 +78,7 @@ func registerPage(w http.ResponseWriter, r *http.Request, status string) {
 		Content: struct{ RegisterStatus string }{status},
 	}
 
-	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
+	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
 		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
 	}
@@ -98,16 +98,16 @@ func registerAction(w http.ResponseWriter, r *http.Request) {
 	err := session.AddUser(email, username, pass)
 
 	if errors.Is(err, session.ErrInvalidUserData) {
-		registerPage(w, r, "Invalid registartion request")
+		registerPage(w, r, "Invalid registration request")
 		return
 	} else if errors.Is(err, session.ErrUserExists) {
 		registerPage(w, r, "Account already exists")
 		return
 	} else if err != nil {
 		log.Println("Account creation error:", err)
-		registerPage(w, r, "An unexpected error has occured") // should never happen
+		registerPage(w, r, "An unexpected error has occurred") // should never happen
 		return
 	}
 
-	registerPage(w, r, "success")
+	registerPage(w, r, "")
 }

@@ -23,11 +23,11 @@ type SectionPage[T ItemType] = PageBase[[]T]
 
 func ActiveSection(w http.ResponseWriter, r *http.Request) {
 	page := SectionPage[ArticleItem]{
-		PageName:   "active",
-		Content: getAllArticles(),
+		PageName: "active",
+		Content:  getAllArticles(),
 	}
 
-	sessionCookie, err := r.Cookie(session.SESSION_COOKIE)
+	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
 		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
 	}
@@ -39,7 +39,7 @@ func ActiveSection(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Temporary hack to get all articles listed on the "active" page
+// Temporary hack to get all articles listed on the "active" page.
 func getAllArticles() []ArticleItem {
 	var articles []ArticleItem
 	dirPath := "../storage/users"
@@ -71,4 +71,15 @@ func getAllArticles() []ArticleItem {
 	}
 
 	return articles
+}
+
+func MainPageHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Bad url:", r.URL.Path)
+		if r.URL.Path != "/" {
+			NotFoundHandler(w, r)
+			return
+		}
+		http.Redirect(w, r, "/active", http.StatusSeeOther)
+	})
 }
