@@ -1,4 +1,4 @@
-package pages
+package page
 
 import (
 	"forumapp/session"
@@ -21,7 +21,13 @@ type ItemType interface {
 
 type SectionPage[T ItemType] = PageBase[[]T]
 
-func ActiveSection(w http.ResponseWriter, r *http.Request) {
+func MakeActiveHandler(ses *session.Sessions) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+		ActiveSection(w, r, ses)
+	}
+}
+
+func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
 	page := SectionPage[ArticleItem]{
 		PageName: "active",
 		Content:  getAllArticles(),
@@ -29,7 +35,7 @@ func ActiveSection(w http.ResponseWriter, r *http.Request) {
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
-		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
+		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/article_list.template"))

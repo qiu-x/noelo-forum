@@ -1,18 +1,25 @@
-package pages
+package page
 
 import (
 	"errors"
 	"forumapp/session"
+	"forumapp/storage"
 	"html/template"
 	"log"
 	"net/http"
 )
 
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+func MakeLoginHandler(ses *session.Sessions) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+		LoginHandler(w, r, ses)
+	}
+}
+
+func LoginHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
 	if r.Method == http.MethodPost {
-		loginAction(w, r)
+		loginAction(ses, w, r)
 	} else if r.Method == http.MethodGet {
-		loginPage(w, r, "")
+		loginPage(ses, w, r, "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -20,14 +27,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func loginPage(w http.ResponseWriter, r *http.Request, status string) {
+func loginPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string) {
 	page := PageBase[struct{ LoginStatus string }]{
 		Content: struct{ LoginStatus string }{status},
 	}
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
-		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
+		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/login.template"))
@@ -37,14 +44,14 @@ func loginPage(w http.ResponseWriter, r *http.Request, status string) {
 	}
 }
 
-func loginAction(w http.ResponseWriter, r *http.Request) {
+func loginAction(ses *session.Sessions, w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("uname")
 	pass := r.FormValue("psw")
 	log.Println("psw:", pass)
 
-	sessionToken, err := session.Auth(username, pass)
+	sessionToken, err := ses.Auth(username, pass)
 	if err != nil {
-		loginPage(w, r, "Invalid credentials")
+		loginPage(ses, w, r, "Invalid credentials")
 
 		http.SetCookie(w, &http.Cookie{
 			Name:  session.SessionCookie,
@@ -61,11 +68,17 @@ func loginAction(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/active", http.StatusSeeOther)
 }
 
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func MakeRegisterHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+		RegisterHandler(w, r, ses, strg)
+	}
+}
+
+func RegisterHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
 	if r.Method == http.MethodPost {
-		registerAction(w, r)
+		registerAction(ses, strg, w, r)
 	} else if r.Method == http.MethodGet {
-		registerPage(w, r, "")
+		registerPage(ses, w, r, "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -73,14 +86,14 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func registerPage(w http.ResponseWriter, r *http.Request, status string) {
+func registerPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string) {
 	page := PageBase[struct{ RegisterStatus string }]{
 		Content: struct{ RegisterStatus string }{status},
 	}
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
-		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
+		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
 	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/register.template"))
@@ -90,24 +103,24 @@ func registerPage(w http.ResponseWriter, r *http.Request, status string) {
 	}
 }
 
-func registerAction(w http.ResponseWriter, r *http.Request) {
+func registerAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	username := r.FormValue("uname")
 	pass := r.FormValue("psw")
 
-	err := session.AddUser(email, username, pass)
+	err := strg.AddUser(email, username, pass)
 
-	if errors.Is(err, session.ErrInvalidUserData) {
-		registerPage(w, r, "Invalid registration request")
+	if errors.Is(err, storage.ErrInvalidUserData) {
+		registerPage(ses, w, r, "Invalid registration request")
 		return
-	} else if errors.Is(err, session.ErrUserExists) {
-		registerPage(w, r, "Account already exists")
+	} else if errors.Is(err, storage.ErrUserExists) {
+		registerPage(ses, w, r, "Account already exists")
 		return
 	} else if err != nil {
 		log.Println("Account creation error:", err)
-		registerPage(w, r, "An unexpected error has occurred") // should never happen
+		registerPage(ses, w, r, "An unexpected error has occurred") // should never happen
 		return
 	}
 
-	registerPage(w, r, "")
+	registerPage(ses, w, r, "")
 }

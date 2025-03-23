@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
-	"forumapp/pages"
+	"forumapp/page"
+	"forumapp/session"
+	"forumapp/storage"
 	"log"
 	"net/http"
 	"os"
@@ -36,6 +38,26 @@ func ChainedHandlers(chain ...http.Handler) http.Handler {
 	})
 }
 
+func setupEndpoints(mux *http.ServeMux) {
+	sessions := session.NewSessions()
+	strg := &storage.Storage{}
+
+	fs := http.FileServer(http.Dir("../content/"))
+	mux.Handle("GET /content/", http.StripPrefix("/content", fs))
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "../content/favicon.ico")
+	})
+
+	mux.Handle("/", page.MainPageHandler())
+	mux.HandleFunc("GET /active", page.MakeActiveHandler(sessions))
+	mux.HandleFunc("/login", page.MakeLoginHandler(sessions))
+	mux.HandleFunc("/register", page.MakeRegisterHandler(sessions, strg))
+	mux.Handle("GET /u/",
+		http.StripPrefix("/u",
+		http.HandlerFunc(page.MakeUserContent(sessions))))
+	mux.HandleFunc("POST /comment", page.MakeCommentAction(sessions))
+}
+
 func main() {
 	var port string
 
@@ -50,21 +72,8 @@ func main() {
 	// limiter := limit.NewIPRateLimiter(0.075, 7) // For forum posts, etc...
 
 	mux := http.NewServeMux()
-	fs := http.FileServer(http.Dir("../content/"))
-	mux.Handle("GET /content/", http.StripPrefix("/content", fs))
-	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../content/favicon.ico")
-	})
 
-	mux.Handle("/", pages.MainPageHandler())
-	mux.HandleFunc("GET /active", pages.ActiveSection)
-
-	mux.HandleFunc("/login", pages.LoginHandler)
-	mux.HandleFunc("/register", pages.RegisterHandler)
-
-	mux.Handle("GET /u/", http.StripPrefix("/u", http.HandlerFunc(pages.UserContent)))
-
-	mux.HandleFunc("POST /comment", pages.CommentAction)
+	setupEndpoints(mux)
 
 	s := &http.Server{
 		Addr:           ":" + port,

@@ -1,8 +1,6 @@
 package session
 
 import (
-	"errors"
-	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -16,13 +14,20 @@ import (
 
 const SessionCookie = "session_token"
 
-var (
-	sessions = map[string]session{}
-	mu       = sync.Mutex{}
-)
+type Sessions struct {
+	sessions map[string]session
+	mu       sync.Mutex
+}
 
 type session struct {
 	username string
+}
+
+func NewSessions() *Sessions {
+	return &Sessions{
+		sessions: make(map[string]session),
+		mu:       sync.Mutex{},
+	}
 }
 
 func generateSessionToken() string {
@@ -35,17 +40,17 @@ func generateSessionToken() string {
 	return result
 }
 
-func CheckAuth(sessionToken string) (string, bool) {
+func (s *Sessions) CheckAuth(sessionToken string) (string, bool) {
 	// Reads from map are thread-safe
-	if v, ok := sessions[sessionToken]; ok {
+	if v, ok := s.sessions[sessionToken]; ok {
 		return v.username, true
 	}
 	return "", false
 }
 
-func Auth(username, pass string) (string, error) {
-	mu.Lock()
-	defer mu.Unlock()
+func (s *Sessions) Auth(username, pass string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Sanitize username
 	username = strings.Replace(username, "/", "∕", -1)
@@ -60,70 +65,8 @@ func Auth(username, pass string) (string, error) {
 
 	sessionToken := generateSessionToken()
 
-	sessions[sessionToken] = session{
+	s.sessions[sessionToken] = session{
 		username: username,
 	}
 	return sessionToken, nil
-}
-
-var (
-	ErrRegister        = errors.New("registration error")
-	ErrInvalidUserData = fmt.Errorf("invalid user data: %w", ErrRegister)
-	ErrUserExists      = fmt.Errorf("user already exists: %w", ErrRegister)
-)
-
-func AddUser(email, username, pass string) error {
-	// Lock this part to avoid races
-	mu.Lock()
-	defer mu.Unlock()
-
-	// Sanitize user data
-	username = strings.Replace(username, "/", "∕", -1)
-	username = strings.TrimSpace(username)
-
-	if !strings.Contains(email, "@") {
-		return ErrInvalidUserData
-	}
-
-	if email == "" || pass == "" || username == "" {
-		return ErrInvalidUserData
-	}
-
-	userdir := filepath.Join("../storage/users/", username)
-	if _, err := os.Stat(userdir); !os.IsNotExist(err) {
-		return ErrUserExists
-	}
-
-	// Create the directory and sub-directories
-	err := os.Mkdir(userdir, 0755)
-	if err != nil {
-		return err
-	}
-	err = os.Mkdir(filepath.Join(userdir, "comment"), 0755)
-	if err != nil {
-		return err
-	}
-	err = os.Mkdir(filepath.Join(userdir, "post"), 0755)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("User directory created successfully:", userdir)
-
-	f, err := os.Create(filepath.Join(userdir, "/email"))
-	if err != nil {
-		return err
-	}
-	_, _ = f.WriteString(email)
-	f.Close()
-
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), 8)
-	f, err = os.Create(filepath.Join(userdir, "/pass"))
-	if err != nil {
-		return err
-	}
-	_, _ = f.Write(hashed)
-	f.Close()
-
-	return nil
 }

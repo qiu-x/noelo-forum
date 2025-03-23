@@ -1,4 +1,4 @@
-package pages
+package page
 
 import (
 	"errors"
@@ -46,7 +46,13 @@ type PostType interface {
 
 type PostPage[T PostType] = PageBase[T]
 
-func UserContent(w http.ResponseWriter, r *http.Request) {
+func MakeUserContent(ses *session.Sessions) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+		UserContent(w, r, ses)
+	}
+}
+
+func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
 	log.Println("resource url:", r.URL.Path)
 
 	user, resourceType, resourcePath, err := parseUserResourceURI(r.URL.Path)
@@ -56,7 +62,7 @@ func UserContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resourceType == "post" {
-		renderPost(resourcePath, user, w, r)
+		renderPost(ses, resourcePath, user, w, r)
 	} else if resourceType == "comment" {
 		// TODO: render standalone comments with replies (direct link to comment)
 		// renderComment(resourcePath, user, w)
@@ -83,7 +89,7 @@ func parseUserResourceURI(path string) (user string, resourceType string, resour
 	return
 }
 
-func renderPost(resourcePath string, user string, w http.ResponseWriter, r *http.Request) {
+func renderPost(ses *session.Sessions, resourcePath string, user string, w http.ResponseWriter, r *http.Request) {
 	title, err := os.ReadFile(filepath.Join(resourcePath, "title"))
 	if err != nil {
 		log.Println("failed to get post title", err)
@@ -104,7 +110,7 @@ func renderPost(resourcePath string, user string, w http.ResponseWriter, r *http
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
-		page.Username, page.IsLoggedIn = session.CheckAuth(sessionCookie.Value)
+		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
 	page.Content = TextPost{
@@ -186,7 +192,13 @@ func getReplies(postPath, commentDirName string) ([]Comment, error) {
 	return comments, nil
 }
 
-func CommentAction(w http.ResponseWriter, r *http.Request) {
+func MakeCommentAction(ses *session.Sessions) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+		CommentAction(w, r, ses)
+	}
+}
+
+func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
 	// TODO: Add mutex
 	// TODO: Clean up fragile fs logic; move to other module, with rest of fs logic
 
@@ -195,7 +207,7 @@ func CommentAction(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Error: auth failed"))
 		return
 	}
-	username, isLoggedIn := session.CheckAuth(sessionCookie.Value)
+	username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
 	if !isLoggedIn {
 		w.Write([]byte("Error: not logged in"))
 		return

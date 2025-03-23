@@ -1,4 +1,4 @@
-package pages
+package page
 
 type PageBase[T any] struct {
 	PageName   string
