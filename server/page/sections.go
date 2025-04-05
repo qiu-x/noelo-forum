@@ -2,24 +2,13 @@ package page
 
 import (
 	"forumapp/session"
+	"forumapp/tmpl"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 )
-
-type ArticleItem struct {
-	Title    string
-	Author   string
-	PostLink string
-}
-
-type ItemType interface {
-	ArticleItem
-}
-
-type SectionPage[T ItemType] = PageBase[[]T]
 
 func MakeActiveHandler(ses *session.Sessions) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
@@ -28,7 +17,7 @@ func MakeActiveHandler(ses *session.Sessions) http.HandlerFunc {
 }
 
 func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
-	page := SectionPage[ArticleItem]{
+	page := tmpl.SectionPage[tmpl.ArticleItem]{
 		PageName: "active",
 		Content:  getAllArticles(),
 	}
@@ -46,8 +35,8 @@ func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions
 }
 
 // Temporary hack to get all articles listed on the "active" page.
-func getAllArticles() []ArticleItem {
-	var articles []ArticleItem
+func getAllArticles() []tmpl.ArticleItem {
+	var articles []tmpl.ArticleItem
 	dirPath := "../storage/users"
 	users, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -68,10 +57,10 @@ func getAllArticles() []ArticleItem {
 			if err != nil {
 				continue
 			}
-			articles = append(articles, ArticleItem{
-				string(title),
-				userData.Name(),
-				"/u/" + userData.Name() + "/post:" + v.Name(),
+			articles = append(articles, tmpl.ArticleItem{
+				Title: string(title),
+				Author: userData.Name(),
+				PostLink: "/u/" + userData.Name() + "/post:" + v.Name(),
 			})
 		}
 	}

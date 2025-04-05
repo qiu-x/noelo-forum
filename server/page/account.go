@@ -4,6 +4,7 @@ import (
 	"errors"
 	"forumapp/session"
 	"forumapp/storage"
+	"forumapp/tmpl"
 	"html/template"
 	"log"
 	"net/http"
@@ -28,7 +29,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions)
 }
 
 func loginPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string) {
-	page := PageBase[struct{ LoginStatus string }]{
+	page := tmpl.PageBase[struct{ LoginStatus string }]{
 		Content: struct{ LoginStatus string }{status},
 	}
 
@@ -87,7 +88,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessio
 }
 
 func registerPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string) {
-	page := PageBase[struct{ RegisterStatus string }]{
+	page := tmpl.PageBase[struct{ RegisterStatus string }]{
 		Content: struct{ RegisterStatus string }{status},
 	}
 

@@ -1,50 +1,16 @@
 package page
 
 import (
-	"errors"
 	"forumapp/session"
+	"forumapp/storage"
+	"forumapp/tmpl"
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
-
-// Matches commnet.template.
-type Comment struct {
-	Author      string
-	Location    string
-	Text        string
-	Indentation int
-	Replies     []Comment
-}
-
-// Matches linkpost.template.
-type LinkPost struct {
-	Location string
-	Title    string
-	Link     string
-	Author   string
-	Comments []Comment
-}
-
-// Matches textpost.template.
-type TextPost struct {
-	Location string
-	Title    string
-	Text     string
-	Author   string
-	Comments []Comment
-}
-
-type PostType interface {
-	TextPost | LinkPost
-}
-
-type PostPage[T PostType] = PageBase[T]
 
 func MakeUserContent(ses *session.Sessions) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
@@ -55,7 +21,7 @@ func MakeUserContent(ses *session.Sessions) http.HandlerFunc {
 func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
 	log.Println("resource url:", r.URL.Path)
 
-	user, resourceType, resourcePath, err := parseUserResourceURI(r.URL.Path)
+	user, resourceType, resourcePath, err := storage.ParseUserResourceURI(r.URL.Path)
 	if err != nil {
 		NotFoundHandler(w, r)
 		return
@@ -69,60 +35,24 @@ func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions) 
 	}
 }
 
-func parseUserResourceURI(path string) (user string, resourceType string, resourcePath string, err error) {
-	urlparts := strings.Split(path, "/")
-	if len(urlparts) < 2 {
-		err = errors.New("invalid URI")
-		return
-	}
-	resourceURI := strings.Split(urlparts[2], ":")
-	if len(resourceURI) < 2 {
-		err = errors.New("invalid URI")
-		return
-	}
-	user = urlparts[1]
-	resourceID := resourceURI[1]
-	resourceType = resourceURI[0]
-
-	resourcePath, err = url.JoinPath(user, resourceType, resourceID)
-	resourcePath = "../storage/users/" + resourcePath
-	return
-}
 
 func renderPost(ses *session.Sessions, resourcePath string, user string, w http.ResponseWriter, r *http.Request) {
-	title, err := os.ReadFile(filepath.Join(resourcePath, "title"))
-	if err != nil {
-		log.Println("failed to get post title", err)
-		return
-	}
-	text, err := os.ReadFile(filepath.Join(resourcePath, "text"))
-	if err != nil {
-		log.Println("failed to get post text", err)
-		return
-	}
-	comments, err := getReplies(resourcePath, "comments")
-	if err != nil && !os.IsNotExist(err) {
-		log.Println("failed to get post comments", err)
-		return
-	}
-
-	var page PostPage[TextPost]
+	var page tmpl.PostPage[tmpl.TextPost]
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
 		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
-	page.Content = TextPost{
-		Location: r.URL.Path,
-		Title:    string(title),
-		Text:     string(text),
-		Author:   user,
-		Comments: comments,
+	content, err := storage.GetPost(resourcePath, r.URL.Path, user)
+	if err != nil {
+		log.Println("\"post\" page generation failed:", err)
 	}
 
+    page.Content = content
+
 	fns := template.FuncMap{
-		"indent": func(comments []Comment) []Comment {
+		"indent": func(comments []tmpl.Comment) []tmpl.Comment {
 			for i := range comments {
 				comments[i].Indentation += 20
 			}
@@ -141,55 +71,6 @@ func renderPost(ses *session.Sessions, resourcePath string, user string, w http.
 	if err != nil {
 		log.Println("\"post\" page generation failed:", err)
 	}
-}
-
-func parseComment(resourcePath string, user string) (Comment, bool) {
-	location, err := os.ReadFile(filepath.Join(resourcePath, "location"))
-	if err != nil {
-		return Comment{}, false
-	}
-	text, err := os.ReadFile(filepath.Join(resourcePath, "text"))
-	if err != nil {
-		return Comment{}, false
-	}
-	replies, err := getReplies(resourcePath, "replies")
-	if err != nil {
-		return Comment{}, false
-	}
-	return Comment{
-		Author:   user,
-		Location: string(location),
-		Text:     string(text),
-		Replies:  replies,
-	}, true
-}
-
-func getReplies(postPath, commentDirName string) ([]Comment, error) {
-	var comments []Comment
-	commentDir := filepath.Join(postPath, commentDirName)
-	files, err := os.ReadDir(commentDir)
-	if err != nil {
-		return []Comment{}, err
-	}
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		commentURI, err := os.ReadFile(filepath.Join(commentDir, file.Name()))
-		if err != nil {
-			continue
-		}
-		user, _, resourcePath, err := parseUserResourceURI(strings.TrimSpace(string(commentURI)))
-		if err != nil {
-			continue
-		}
-		comment, ok := parseComment(resourcePath, user)
-		if !ok {
-			continue
-		}
-		comments = append(comments, comment)
-	}
-	return comments, nil
 }
 
 func MakeCommentAction(ses *session.Sessions) http.HandlerFunc {
@@ -256,7 +137,7 @@ func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions
 	_, _ = lf.WriteString(location)
 	lf.Close()
 
-	_, _, resourcePath, err := parseUserResourceURI(location)
+	_, _, resourcePath, err := storage.ParseUserResourceURI(location)
 
 	commentRef, _, err := getNextName(filepath.Join(resourcePath, "comments"))
 	cr, err := os.Create(commentRef)
