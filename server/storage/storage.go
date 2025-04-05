@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -106,6 +107,70 @@ func ParseUserResourceURI(path string) (user string, resourceType string, resour
 	return
 }
 
+func AddComment(username string, text string, location string) error {
+	userdir := filepath.Join("../storage/users/", username)
+	if _, err := os.Stat(userdir); os.IsNotExist(err) {
+		return fmt.Errorf("logged in as non existing user: %w", err)
+	}
+
+	commentDir, id, err := getNextName(filepath.Join(userdir, "comment"))
+	if err != nil {
+		return fmt.Errorf("failed to get next comment id, : %w", err)
+	}
+
+	err = os.Mkdir(commentDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed create comment: : %w", err)
+	}
+
+	err = os.Mkdir(filepath.Join(commentDir, "replies"), 0755)
+	if err != nil {
+		return fmt.Errorf("failed create comment: : %w", err)
+	}
+
+	tf, err := os.Create(filepath.Join(commentDir, "text"))
+	if err != nil {
+		return fmt.Errorf("failed create comment: : %w", err)
+	}
+	_, _ = tf.WriteString(text)
+	tf.Close()
+
+	lf, err := os.Create(filepath.Join(commentDir, "location"))
+	if err != nil {
+		return fmt.Errorf("failed create comment: : %w", err)
+	}
+	_, _ = lf.WriteString(location)
+	lf.Close()
+
+	_, _, resourcePath, err := ParseUserResourceURI(location)
+
+	commentRef, _, err := getNextName(filepath.Join(resourcePath, "comments"))
+	cr, err := os.Create(commentRef)
+	if err != nil {
+		return fmt.Errorf("failed create comment: : %w", err)
+	}
+	_, _ = cr.WriteString("/" + username + "/comment:" + strconv.Itoa(id))
+	lf.Close()
+    return nil
+}
+
+func getNextName(basePath string) (string, int, error) {
+	entries, err := os.ReadDir(basePath)
+	if err != nil {
+		return "", 0, err
+	}
+
+	maxNum := -1
+	for _, entry := range entries {
+		num, err := strconv.Atoi(entry.Name())
+		if err == nil && num > maxNum {
+			maxNum = num
+		}
+	}
+
+	return filepath.Join(basePath, strconv.Itoa(maxNum+1)), maxNum+1, nil
+}
+
 func GetPost(resourcePath string, location, user string) (tmpl.TextPost, error) {
 	title, err := os.ReadFile(filepath.Join(resourcePath, "title"))
 	if err != nil {
@@ -113,11 +178,11 @@ func GetPost(resourcePath string, location, user string) (tmpl.TextPost, error) 
 	}
 	text, err := os.ReadFile(filepath.Join(resourcePath, "text"))
 	if err != nil {
-		return tmpl.TextPost{}, fmt.Errorf("failed to get post text", err)
+		return tmpl.TextPost{}, fmt.Errorf("failed to get post text: %w", err)
 	}
 	comments, err := getReplies(resourcePath, "comments")
 	if err != nil && !os.IsNotExist(err) {
-		return tmpl.TextPost{}, fmt.Errorf("failed to get post comments", err)
+		return tmpl.TextPost{}, fmt.Errorf("failed to get post comments: %w", err)
 	}
 
 	return tmpl.TextPost{
@@ -176,5 +241,39 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 		comments = append(comments, comment)
 	}
 	return comments, nil
+}
+
+// Temporary hack to get all articles listed on the "active" page.
+func GetAllArticles() []tmpl.ArticleItem {
+	var articles []tmpl.ArticleItem
+	dirPath := "../storage/users"
+	users, err := os.ReadDir(dirPath)
+	if err != nil {
+		return articles
+	}
+
+	for _, userData := range users {
+		if !userData.IsDir() {
+			continue
+		}
+		userPosts := filepath.Join(dirPath, userData.Name(), "post")
+		userPostsDir, err := os.ReadDir(userPosts)
+		if err != nil {
+			continue
+		}
+		for _, v := range userPostsDir {
+			title, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "title"))
+			if err != nil {
+				continue
+			}
+			articles = append(articles, tmpl.ArticleItem{
+				Title: string(title),
+				Author: userData.Name(),
+				PostLink: "/u/" + userData.Name() + "/post:" + v.Name(),
+			})
+		}
+	}
+
+	return articles
 }
 

@@ -7,9 +7,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
 )
 
 func MakeUserContent(ses *session.Sessions) http.HandlerFunc {
@@ -97,73 +94,11 @@ func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions
 	location := r.FormValue("location")
 	text := r.FormValue("comment")
 
-	userdir := filepath.Join("../storage/users/", username)
-	if _, err := os.Stat(userdir); os.IsNotExist(err) {
-		w.Write([]byte("Error: logged in as non existing user"))
-		return
-	}
-
-	commentDir, id, err := getNextName(filepath.Join(userdir, "comment"))
+	err = storage.AddComment(username, text, location)
 	if err != nil {
-		w.Write([]byte("Error: failed to get next comment id, " + err.Error()))
+		w.Write([]byte("error: " + err.Error()))
 		return
 	}
-
-	err = os.Mkdir(commentDir, 0755)
-	if err != nil {
-		w.Write([]byte("Error: failed create comment: " + err.Error()))
-		return
-	}
-
-	err = os.Mkdir(filepath.Join(commentDir, "replies"), 0755)
-	if err != nil {
-		w.Write([]byte("Error: failed create comment: " + err.Error()))
-		return
-	}
-
-	tf, err := os.Create(filepath.Join(commentDir, "text"))
-	if err != nil {
-		w.Write([]byte("Error: failed create comment: " + err.Error()))
-		return
-	}
-	_, _ = tf.WriteString(text)
-	tf.Close()
-
-	lf, err := os.Create(filepath.Join(commentDir, "location"))
-	if err != nil {
-		w.Write([]byte("Error: failed create comment: " + err.Error()))
-		return
-	}
-	_, _ = lf.WriteString(location)
-	lf.Close()
-
-	_, _, resourcePath, err := storage.ParseUserResourceURI(location)
-
-	commentRef, _, err := getNextName(filepath.Join(resourcePath, "comments"))
-	cr, err := os.Create(commentRef)
-	if err != nil {
-		w.Write([]byte("Error: failed create comment: " + err.Error()))
-		return
-	}
-	_, _ = cr.WriteString("/" + username + "/comment:" + strconv.Itoa(id))
-	lf.Close()
 
 	http.Redirect(w, r, r.Header.Get("Referer"), 302)
-}
-
-func getNextName(basePath string) (string, int, error) {
-	entries, err := os.ReadDir(basePath)
-	if err != nil {
-		return "", 0, err
-	}
-
-	maxNum := -1
-	for _, entry := range entries {
-		num, err := strconv.Atoi(entry.Name())
-		if err == nil && num > maxNum {
-			maxNum = num
-		}
-	}
-
-	return filepath.Join(basePath, strconv.Itoa(maxNum+1)), maxNum+1, nil
 }

@@ -1,6 +1,6 @@
 package tmpl
 
-// base for filling out page.template
+// Base for filling out page.template
 type PageBase[T any] struct {
 	PageName   string
 	Username   string
@@ -25,7 +25,7 @@ type (
 
 // User content related templates
 type (
-    // Matches commnet.template.
+    // Matches commnet.template
     Comment struct {
         Author      string
         Location    string
@@ -34,7 +34,7 @@ type (
         Replies     []Comment
     }
 
-    // Matches linkpost.template.
+    // Matches linkpost.template
     LinkPost struct {
         Location string
         Title    string
@@ -43,7 +43,7 @@ type (
         Comments []Comment
     }
 
-    // Matches textpost.template.
+    // Matches textpost.template
     TextPost struct {
         Location string
         Title    string
