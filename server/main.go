@@ -54,7 +54,7 @@ func setupEndpoints(mux *http.ServeMux) {
 	mux.HandleFunc("/register", page.MakeRegisterHandler(sessions, strg))
 	mux.Handle("GET /u/",
 		http.StripPrefix("/u",
-		http.HandlerFunc(page.MakeUserContent(sessions))))
+			http.HandlerFunc(page.MakeUserContent(sessions))))
 	mux.HandleFunc("POST /comment", page.MakeCommentAction(sessions))
 }
 

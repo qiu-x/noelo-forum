@@ -28,11 +28,11 @@ header nav {
 }
 
 header nav a:hover {
-  border-bottom: 3px solid #de0000;
+  border-bottom: 2px solid #de0000;
 }
 
 header nav a.active {
-  border-bottom: 3px solid #de0000;
+  border-bottom: 2px solid #de0000;
 }
 
 header a {
