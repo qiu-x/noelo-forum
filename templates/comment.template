@@ -1,6 +1,6 @@
 {{define "comment"}}
   <div style="margin-left: {{ .Indentation }}px" class="comment">
-    <p class="metadata">by {{ .Author }} | 2 hours ago</p>
+    <p class="metadata">by {{ .Author }}</p>
     <article>{{ .Text }}</article>
   </div>
   <div class="replies">
