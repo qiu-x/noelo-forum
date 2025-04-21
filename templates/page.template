@@ -21,10 +21,9 @@
       <img style="width: 150px;" src="/content/wide_logo.svg" alt="comp.sci Icon">
     </h1>
     <nav>
-      <a class="{{ if eq .PageName "active" }}active{{ end }}" href="/active">Aktywne</a>
-      <a class="{{ if eq .PageName "news" }}active{{ end }}" href="/news">Newsy</a>
-      <a class="{{ if eq .PageName "projects" }}active{{ end }}" href="/projects">Projekty</a>
-      <a class="{{ if eq .PageName "random" }}active{{ end }}" href="/random">Random</a>
+      <a class="{{ if eq .PageName "active" }}active{{ end }}" href="/active">Active</a> |
+      <a class="{{ if eq .PageName "news" }}active{{ end }}" href="/feed">News</a> |
+      <a class="{{ if eq .PageName "addpost" }}active{{ end }}" href="/addpost">New Post</a>
     </nav>
   </header>
   <main>

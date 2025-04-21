@@ -1,0 +1,50 @@
+{{define "pagecontent"}}
+  <style>
+    input[type=text], input[type=password] {
+      width: 100%;
+      padding: 12px 20px;
+      margin: 8px 0;
+      display: inline-block;
+      box-sizing: border-box;
+      color: #ddd;
+      background-color: #333;
+    }
+
+    form {
+      margin: 5% auto 15% auto;
+      width: 85%;
+    }
+
+    .error {
+      border: red 2px solid;
+      margin: 20p;
+      padding: 10px;
+    }
+
+    .success {
+      border: green 2px solid;
+      margin: 20p;
+      padding: 10px;
+    }
+  </style>
+  <form action="/addpost" method="post">
+
+    {{ if not (eq .AddPostError "") }}
+    <label class="error">
+      Error: {{ .AddPostError }}
+    </label>
+    <br><br>
+    {{ end }}
+
+    <div class="container">
+      <label for="title"><b>Title</b></label>
+      <input type="text" name="title" required>
+      <label for="text"><b>Text</b></label>
+      <div style="width: 100%;">
+        <textarea rows="6" name="text" id="text"></textarea>
+      </div>
+    </div>
+    <br>
+    <button type="submit">Post</button>
+  </form>
+{{end}}

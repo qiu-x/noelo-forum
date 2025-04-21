@@ -81,7 +81,38 @@ func (s *Storage) AddUser(email, username, pass string) error {
 	return nil
 }
 
-func ParseUserResourceURI(path string) (user string, resourceType string, resourcePath string, err error) {
+type ResourceType uint
+const (
+	INVALID = iota
+	POST_RESOURCE
+	COMMENT_RESOURCE
+)
+
+func TypeFromURI(path string) (ResourceType, error) {
+	urlparts := strings.Split(path, "/")
+	if len(urlparts) < 2 {
+		err := errors.New("invalid URI")
+		return INVALID, err
+	}
+	resourceURI := strings.Split(urlparts[2], ":")
+	if len(resourceURI) < 2 {
+		err := errors.New("invalid URI")
+		return INVALID, err
+	}
+	resourceType := resourceURI[0]
+
+	switch (resourceType) {
+	case "post":
+		return POST_RESOURCE, nil
+	case "comment":
+		return POST_RESOURCE, nil
+	default:
+        err := errors.New("unsupported Type:" + resourceType)
+		return INVALID, err
+	}
+}
+
+func parseUserResourceURI(path string) (user string, resourceType string, resourcePath string, err error) {
 	urlparts := strings.Split(path, "/")
 	if len(urlparts) < 2 {
 		err = errors.New("invalid URI")
@@ -107,7 +138,55 @@ func ParseUserResourceURI(path string) (user string, resourceType string, resour
 	return
 }
 
-func AddComment(username string, text string, location string) error {
+func (s *Storage) AddPost(username string, postName string, text string) error {
+	// Lock this part to avoid races
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	userdir := filepath.Join("../storage/users/", username)
+	if _, err := os.Stat(userdir); os.IsNotExist(err) {
+		return fmt.Errorf("logged in as non existing user: %w", err)
+	}
+
+	postDir, id, err := getNextName(filepath.Join(userdir, "post"))
+	if err != nil {
+		return fmt.Errorf("failed to get next post id, : %w", err)
+	}
+
+	err = os.Mkdir(postDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed create post: %w", err)
+	}
+
+	err = os.Mkdir(filepath.Join(postDir, "comments"), 0755)
+	if err != nil {
+		return fmt.Errorf("failed create post: %w", err)
+	}
+
+	tf, err := os.Create(filepath.Join(postDir, "text"))
+	if err != nil {
+		return fmt.Errorf("failed create post: %w", err)
+	}
+	_, _ = tf.WriteString(text)
+	tf.Close()
+
+	title, err := os.Create(filepath.Join(postDir, "title"))
+	if err != nil {
+		return fmt.Errorf("failed create post: %w", err)
+	}
+	_, _ = title.WriteString(postName)
+	title.Close()
+
+	s.updateRecents("/"+username+"/post:"+strconv.Itoa(id))
+
+    return nil
+}
+
+func (s *Storage) AddComment(username string, text string, location string) error {
+	// Lock this part to avoid races
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	userdir := filepath.Join("../storage/users/", username)
 	if _, err := os.Stat(userdir); os.IsNotExist(err) {
 		return fmt.Errorf("logged in as non existing user: %w", err)
@@ -120,37 +199,40 @@ func AddComment(username string, text string, location string) error {
 
 	err = os.Mkdir(commentDir, 0755)
 	if err != nil {
-		return fmt.Errorf("failed create comment: : %w", err)
+		return fmt.Errorf("failed create comment: %w", err)
 	}
 
 	err = os.Mkdir(filepath.Join(commentDir, "replies"), 0755)
 	if err != nil {
-		return fmt.Errorf("failed create comment: : %w", err)
+		return fmt.Errorf("failed create comment: %w", err)
 	}
 
 	tf, err := os.Create(filepath.Join(commentDir, "text"))
 	if err != nil {
-		return fmt.Errorf("failed create comment: : %w", err)
+		return fmt.Errorf("failed create comment: %w", err)
 	}
 	_, _ = tf.WriteString(text)
 	tf.Close()
 
 	lf, err := os.Create(filepath.Join(commentDir, "location"))
 	if err != nil {
-		return fmt.Errorf("failed create comment: : %w", err)
+		return fmt.Errorf("failed create comment: %w", err)
 	}
 	_, _ = lf.WriteString(location)
 	lf.Close()
 
-	_, _, resourcePath, err := ParseUserResourceURI(location)
+	_, _, resourcePath, err := parseUserResourceURI(location)
 
 	commentRef, _, err := getNextName(filepath.Join(resourcePath, "comments"))
 	cr, err := os.Create(commentRef)
 	if err != nil {
-		return fmt.Errorf("failed create comment: : %w", err)
+		return fmt.Errorf("failed create comment: %w", err)
 	}
 	_, _ = cr.WriteString("/" + username + "/comment:" + strconv.Itoa(id))
 	lf.Close()
+
+	s.updateRecents(location)
+
     return nil
 }
 
@@ -171,7 +253,9 @@ func getNextName(basePath string) (string, int, error) {
 	return filepath.Join(basePath, strconv.Itoa(maxNum+1)), maxNum+1, nil
 }
 
-func GetPost(resourcePath string, location, user string) (tmpl.TextPost, error) {
+func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
+	user, _, resourcePath, err := parseUserResourceURI(uri)
+
 	title, err := os.ReadFile(filepath.Join(resourcePath, "title"))
 	if err != nil {
 		return tmpl.TextPost{}, fmt.Errorf("failed to get post title: %w", err)
@@ -186,7 +270,7 @@ func GetPost(resourcePath string, location, user string) (tmpl.TextPost, error) 
 	}
 
 	return tmpl.TextPost{
-		Location: location,
+		Location: uri,
 		Title:    string(title),
 		Text:     string(text),
 		Author:   user,
@@ -230,7 +314,7 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 		if err != nil {
 			continue
 		}
-		user, _, resourcePath, err := ParseUserResourceURI(strings.TrimSpace(string(commentURI)))
+		user, _, resourcePath, err := parseUserResourceURI(strings.TrimSpace(string(commentURI)))
 		if err != nil {
 			continue
 		}
@@ -243,8 +327,42 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 	return comments, nil
 }
 
-// Temporary hack to get all articles listed on the "active" page.
-func GetAllArticles() []tmpl.ArticleItem {
+func (s *Storage) GetRecentlyActive(count uint) []tmpl.ArticleItem {
+	recents := "../storage/recents"
+	URIs, err := os.ReadFile(recents)
+	if err != nil {
+		return []tmpl.ArticleItem{}
+	}
+
+	dedupedURIs := []string{}
+	for _, v := range strings.Split(string(URIs), "\n") {
+		if slices.Contains(dedupedURIs, v) {
+			continue
+		}
+		dedupedURIs = append(dedupedURIs, v)
+	}
+
+	fmt.Println(dedupedURIs)
+
+	var articles []tmpl.ArticleItem
+	for _, v := range dedupedURIs {
+		user, _, resourcePath, err := parseUserResourceURI(v)
+		title, err := os.ReadFile(filepath.Join(resourcePath, "title"))
+		if err != nil {
+			fmt.Println("[GetRecentlyActive] error during list creation:", err)
+			continue
+		}
+		articles = append(articles, tmpl.ArticleItem{
+			Title:    string(title),
+			Author:   user,
+			PostLink: "/u" + v,
+		})
+	}
+
+	return articles
+}
+
+func (s *Storage) GetAllArticles() []tmpl.ArticleItem {
 	var articles []tmpl.ArticleItem
 	dirPath := "../storage/users"
 	users, err := os.ReadDir(dirPath)
@@ -277,3 +395,22 @@ func GetAllArticles() []tmpl.ArticleItem {
 	return articles
 }
 
+// Only use when `mu` is locked
+func (s *Storage) updateRecents(postURI string) error {
+	// Read the original file
+	content, err := os.ReadFile("../storage/recents")
+	if err != nil {
+		content = []byte{}
+	}
+
+	// Open file for writing (truncate)
+	file, err := os.Create("../storage/recents")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write the new line followed by the original content
+	_, err = file.WriteString(postURI + "\n" + string(content))
+	return err
+}

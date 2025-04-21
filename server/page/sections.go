@@ -9,16 +9,16 @@ import (
 	"net/http"
 )
 
-func MakeActiveHandler(ses *session.Sessions) http.HandlerFunc {
+func MakeActiveHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
-		ActiveSection(w, r, ses)
+		ActiveSection(w, r, ses, strg)
 	}
 }
 
-func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
+func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
 	page := tmpl.SectionPage[tmpl.ArticleItem]{
 		PageName: "active",
-		Content:  storage.GetAllArticles(),
+		Content:  strg.GetRecentlyActive(10),
 	}
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)

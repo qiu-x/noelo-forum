@@ -48,14 +48,19 @@ func setupEndpoints(mux *http.ServeMux) {
 		http.ServeFile(w, r, "../content/favicon.ico")
 	})
 
+	mux.HandleFunc("GET /feed", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "../storage/feed")
+	})
+
 	mux.Handle("/", page.MainPageHandler())
-	mux.HandleFunc("GET /active", page.MakeActiveHandler(sessions))
+	mux.HandleFunc("GET /active", page.MakeActiveHandler(sessions, strg))
 	mux.HandleFunc("/login", page.MakeLoginHandler(sessions))
 	mux.HandleFunc("/register", page.MakeRegisterHandler(sessions, strg))
 	mux.Handle("GET /u/",
 		http.StripPrefix("/u",
-			http.HandlerFunc(page.MakeUserContent(sessions))))
-	mux.HandleFunc("POST /comment", page.MakeCommentAction(sessions))
+			http.HandlerFunc(page.MakeUserContent(sessions, strg))))
+	mux.HandleFunc("POST /comment", page.MakeCommentAction(sessions, strg))
+	mux.HandleFunc("/addpost", page.MakeAddPostHandler(sessions, strg))
 }
 
 func main() {

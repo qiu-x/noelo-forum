@@ -9,31 +9,36 @@ import (
 	"net/http"
 )
 
-func MakeUserContent(ses *session.Sessions) http.HandlerFunc {
+func MakeUserContent(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
-		UserContent(w, r, ses)
+		UserContent(w, r, ses, strg)
 	}
 }
 
-func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
+func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
 	log.Println("resource url:", r.URL.Path)
 
-	user, resourceType, resourcePath, err := storage.ParseUserResourceURI(r.URL.Path)
+	resourceType, err := storage.TypeFromURI(r.URL.Path)
 	if err != nil {
 		NotFoundHandler(w, r)
 		return
 	}
 
-	if resourceType == "post" {
-		renderPost(ses, resourcePath, user, w, r)
-	} else if resourceType == "comment" {
+	switch (resourceType) {
+	case storage.POST_RESOURCE:
+		renderPost(ses, strg, r.URL.Path, w, r)
+	case storage.COMMENT_RESOURCE:
 		// TODO: render standalone comments with replies (direct link to comment)
 		// renderComment(resourcePath, user, w)
+		panic("unimplemented!")
+	default:
+		NotFoundHandler(w, r)
+		return
 	}
 }
 
 
-func renderPost(ses *session.Sessions, resourcePath string, user string, w http.ResponseWriter, r *http.Request) {
+func renderPost(ses *session.Sessions, strg *storage.Storage, uri string, w http.ResponseWriter, r *http.Request) {
 	var page tmpl.PostPage[tmpl.TextPost]
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
@@ -41,7 +46,7 @@ func renderPost(ses *session.Sessions, resourcePath string, user string, w http.
 		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
-	content, err := storage.GetPost(resourcePath, r.URL.Path, user)
+	content, err := strg.GetPost(r.URL.Path)
 	if err != nil {
 		log.Println("\"post\" page generation failed:", err)
 	}
@@ -70,16 +75,13 @@ func renderPost(ses *session.Sessions, resourcePath string, user string, w http.
 	}
 }
 
-func MakeCommentAction(ses *session.Sessions) http.HandlerFunc {
+func MakeCommentAction(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
-		CommentAction(w, r, ses)
+		CommentAction(w, r, ses, strg)
 	}
 }
 
-func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
-	// TODO: Add mutex
-	// TODO: Clean up fragile fs logic; move to other module, with rest of fs logic
-
+func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err != nil {
 		w.Write([]byte("Error: auth failed"))
@@ -94,7 +96,7 @@ func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions
 	location := r.FormValue("location")
 	text := r.FormValue("comment")
 
-	err = storage.AddComment(username, text, location)
+	err = strg.AddComment(username, text, location)
 	if err != nil {
 		w.Write([]byte("error: " + err.Error()))
 		return
