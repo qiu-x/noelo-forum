@@ -123,5 +123,5 @@ func registerAction(ses *session.Sessions, strg *storage.Storage, w http.Respons
 		return
 	}
 
-	registerPage(ses, w, r, "")
+	registerPage(ses, w, r, "success")
 }

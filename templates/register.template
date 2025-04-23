@@ -30,16 +30,18 @@
   <form action="/register" method="post">
 
     {{ if not (eq .RegisterStatus "") }}
-    <label class="error">
-      Error: {{ .RegisterStatus }}
-    </label>
-    <br><br>
-    {{ end }}
-    {{ if eq .RegisterStatus "success" }}
-    <span class="success">
-      Rejestracja pomyślna
-    </span>
-    <br><br>
+      {{ if not (eq .RegisterStatus "success") }}
+        <label class="error">
+          Error: {{ .RegisterStatus }}
+        </label>
+        <br><br>
+      {{ end }}
+      {{ if eq .RegisterStatus "success" }}
+        <span class="success">
+          Rejestracja pomyślna
+        </span>
+        <br><br>
+      {{ end }}
     {{ end }}
 
     <div class="container">
