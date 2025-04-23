@@ -2,6 +2,7 @@
 	{{range .}}
 	  <div class="news-item">
 	    <h2><a href="{{ .PostLink }}">{{ .Title }}</a></h2>
+        <p class="metadata creation-date">{{ .CreationDate }}</p>
 	    <p class="metadata">by {{ .Author }}</p>
 	  </div>
 	{{end}}

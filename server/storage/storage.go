@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -82,6 +83,7 @@ func (s *Storage) AddUser(email, username, pass string) error {
 }
 
 type ResourceType uint
+
 const (
 	INVALID = iota
 	POST_RESOURCE
@@ -101,13 +103,13 @@ func TypeFromURI(path string) (ResourceType, error) {
 	}
 	resourceType := resourceURI[0]
 
-	switch (resourceType) {
+	switch resourceType {
 	case "post":
 		return POST_RESOURCE, nil
 	case "comment":
 		return POST_RESOURCE, nil
 	default:
-        err := errors.New("unsupported Type:" + resourceType)
+		err := errors.New("unsupported Type:" + resourceType)
 		return INVALID, err
 	}
 }
@@ -127,11 +129,11 @@ func parseUserResourceURI(path string) (user string, resourceType string, resour
 	resourceID := resourceURI[1]
 	resourceType = resourceURI[0]
 
-    supportedTypes := []string{ "post", "comment" }
-    if !slices.Contains(supportedTypes, resourceType) {
-        err = errors.New("unsupported Type:" + resourceType)
+	supportedTypes := []string{"post", "comment"}
+	if !slices.Contains(supportedTypes, resourceType) {
+		err = errors.New("unsupported Type:" + resourceType)
 		return
-    }
+	}
 
 	resourcePath, err = url.JoinPath(user, resourceType, resourceID)
 	resourcePath = "../storage/users/" + resourcePath
@@ -177,9 +179,16 @@ func (s *Storage) AddPost(username string, postName string, text string) error {
 	_, _ = title.WriteString(postName)
 	title.Close()
 
-	s.updateRecents("/"+username+"/post:"+strconv.Itoa(id))
+	creationDate, err := os.Create(filepath.Join(postDir, "creation_date"))
+	if err != nil {
+		return fmt.Errorf("failed create post: %w", err)
+	}
+	_, _ = creationDate.WriteString(time.Now().Format("2006-01-02 15:04"))
+	creationDate.Close()
 
-    return nil
+	s.updateRecents("/" + username + "/post:" + strconv.Itoa(id))
+
+	return nil
 }
 
 func (s *Storage) AddComment(username string, text string, location string) error {
@@ -214,6 +223,13 @@ func (s *Storage) AddComment(username string, text string, location string) erro
 	_, _ = tf.WriteString(text)
 	tf.Close()
 
+	creationDate, err := os.Create(filepath.Join(commentDir, "creation_date"))
+	if err != nil {
+		return fmt.Errorf("failed create comment: %w", err)
+	}
+	_, _ = creationDate.WriteString(time.Now().Format("2006-01-02 15:04"))
+	creationDate.Close()
+
 	lf, err := os.Create(filepath.Join(commentDir, "location"))
 	if err != nil {
 		return fmt.Errorf("failed create comment: %w", err)
@@ -233,7 +249,7 @@ func (s *Storage) AddComment(username string, text string, location string) erro
 
 	s.updateRecents(location)
 
-    return nil
+	return nil
 }
 
 func getNextName(basePath string) (string, int, error) {
@@ -250,7 +266,7 @@ func getNextName(basePath string) (string, int, error) {
 		}
 	}
 
-	return filepath.Join(basePath, strconv.Itoa(maxNum+1)), maxNum+1, nil
+	return filepath.Join(basePath, strconv.Itoa(maxNum+1)), maxNum + 1, nil
 }
 
 func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
@@ -264,21 +280,30 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 	if err != nil {
 		return tmpl.TextPost{}, fmt.Errorf("failed to get post text: %w", err)
 	}
+	creation_date, err := os.ReadFile(filepath.Join(resourcePath, "creation_date"))
+	if err != nil {
+		return tmpl.TextPost{}, fmt.Errorf("failed to get creation date: %w", err)
+	}
 	comments, err := getReplies(resourcePath, "comments")
 	if err != nil && !os.IsNotExist(err) {
 		return tmpl.TextPost{}, fmt.Errorf("failed to get post comments: %w", err)
 	}
 
 	return tmpl.TextPost{
-		Location: uri,
-		Title:    string(title),
-		Text:     string(text),
-		Author:   user,
-		Comments: comments,
+		Location:     uri,
+		Title:        string(title),
+		Text:         string(text),
+		Author:       user,
+		CreationDate: string(creation_date),
+		Comments:     comments,
 	}, nil
 }
 
 func parseComment(resourcePath string, user string) (tmpl.Comment, bool) {
+	creation_date, err := os.ReadFile(filepath.Join(resourcePath, "creation_date"))
+	if err != nil {
+		return tmpl.Comment{}, false
+	}
 	location, err := os.ReadFile(filepath.Join(resourcePath, "location"))
 	if err != nil {
 		return tmpl.Comment{}, false
@@ -292,10 +317,11 @@ func parseComment(resourcePath string, user string) (tmpl.Comment, bool) {
 		return tmpl.Comment{}, false
 	}
 	return tmpl.Comment{
-		Author:   user,
-		Location: string(location),
-		Text:     string(text),
-		Replies:  replies,
+		Author:       user,
+		CreationDate: string(creation_date),
+		Location:     string(location),
+		Text:         string(text),
+		Replies:      replies,
 	}, true
 }
 
@@ -352,10 +378,16 @@ func (s *Storage) GetRecentlyActive(count uint) []tmpl.ArticleItem {
 			fmt.Println("[GetRecentlyActive] error during list creation:", err)
 			continue
 		}
+		creation_date, err := os.ReadFile(filepath.Join(resourcePath, "creation_date"))
+		if err != nil {
+			fmt.Println("[GetRecentlyActive] error during list creation:", err)
+			continue
+		}
 		articles = append(articles, tmpl.ArticleItem{
-			Title:    string(title),
-			Author:   user,
-			PostLink: "/u" + v,
+			Title:        string(title),
+			Author:       user,
+			CreationDate: string(creation_date),
+			PostLink:     "/u" + v,
 		})
 	}
 
@@ -384,10 +416,15 @@ func (s *Storage) GetAllArticles() []tmpl.ArticleItem {
 			if err != nil {
 				continue
 			}
+			creation_date, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "creation_date"))
+			if err != nil {
+				continue
+			}
 			articles = append(articles, tmpl.ArticleItem{
-				Title: string(title),
-				Author: userData.Name(),
-				PostLink: "/u/" + userData.Name() + "/post:" + v.Name(),
+				Title:        string(title),
+				Author:       userData.Name(),
+				CreationDate: string(creation_date),
+				PostLink:     "/u/" + userData.Name() + "/post:" + v.Name(),
 			})
 		}
 	}
