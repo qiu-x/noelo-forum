@@ -74,8 +74,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// limiter := limit.NewIPRateLimiter(0.075, 7) // For forum posts, etc...
-
 	mux := http.NewServeMux()
 
 	setupEndpoints(mux)

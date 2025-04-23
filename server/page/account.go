@@ -48,7 +48,6 @@ func loginPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, st
 func loginAction(ses *session.Sessions, w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("uname")
 	pass := r.FormValue("psw")
-	log.Println("psw:", pass)
 
 	sessionToken, err := ses.Auth(username, pass)
 	if err != nil {
