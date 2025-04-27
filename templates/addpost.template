@@ -15,12 +15,6 @@
       width: 85%;
     }
 
-    .error {
-      border: red 2px solid;
-      margin: 20p;
-      padding: 10px;
-    }
-
     .success {
       border: green 2px solid;
       margin: 20p;
@@ -30,9 +24,11 @@
   <form action="/addpost" method="post">
 
     {{ if not (eq .AddPostError "") }}
-    <label class="error">
-      Error: {{ .AddPostError }}
-    </label>
+    <div class="error-box">
+      <label>
+        Error: {{ .AddPostError }}
+      </label>
+    </div>
     <br><br>
     {{ end }}
 

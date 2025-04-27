@@ -1,4 +1,13 @@
 {{define "pagecontent"}}
+  {{ if not (eq .TextPostError "") }}
+    <div class="error-box">
+      <label>
+        Error: {{ .TextPostError }}
+      </label>
+    </div>
+    <br><br>
+  {{ end }}
+
   <div class="news-item">
     <h2><a href="#">{{ .Title }}</a></h2>
     <p class="metadata creation-date">{{ .CreationDate }}</p>

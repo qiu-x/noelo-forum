@@ -47,12 +47,13 @@ type (
 
 	// Matches textpost.template
 	TextPost struct {
-		Location     string
-		Title        string
-		Text         string
-		Author       string
-		CreationDate string
-		Comments     []Comment
+		Location      string
+		Title         string
+		Text          string
+		Author        string
+		CreationDate  string
+		TextPostError string
+		Comments      []Comment
 	}
 
 	PostType interface {

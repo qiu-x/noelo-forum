@@ -7,9 +7,11 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 )
+
 func MakeAddPostHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
-	return func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		AddPostHandler(w, r, ses, strg)
 	}
 }
@@ -28,8 +30,8 @@ func AddPostHandler(w http.ResponseWriter, r *http.Request, ses *session.Session
 
 func addPostPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string) {
 	page := tmpl.PageBase[struct{ AddPostError string }]{
-		PageName:   "addpost",
-		Content:    struct{ AddPostError string }{status},
+		PageName: "addpost",
+		Content:  struct{ AddPostError string }{status},
 	}
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
@@ -66,6 +68,12 @@ func addPostAction(ses *session.Sessions, strg *storage.Storage, w http.Response
 
 	title := r.FormValue("title")
 	text := r.FormValue("text")
+
+	if strings.TrimSpace(title) == "" || strings.TrimSpace(text) == "" {
+		log.Println("Error while adding post: title or text are empty")
+		addPostPage(ses, w, r, "Please make sure both the title and text include at least one letter and aren't just empty.")
+		return
+	}
 
 	err = strg.AddPost(username, title, text)
 

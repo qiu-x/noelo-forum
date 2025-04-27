@@ -49,6 +49,12 @@ main {
   margin: 20px auto;
 }
 
+.error-box {
+    border: red 2px solid;
+    padding: 10px;
+    width: fit-content;
+}
+
 .news-item {
   position: relative;
   border-bottom: 1px solid #555;
