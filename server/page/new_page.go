@@ -75,6 +75,12 @@ func addPostAction(ses *session.Sessions, strg *storage.Storage, w http.Response
 		return
 	}
 
+	if len(title) > 200 {
+		log.Println("Error while adding post: title it too long, max 200 chars")
+		addPostPage(ses, w, r, "Please make sure the title is up to 200 letters.")
+		return
+	}
+
 	err = strg.AddPost(username, title, text)
 
 	if err != nil {
