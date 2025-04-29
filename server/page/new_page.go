@@ -20,7 +20,7 @@ func AddPostHandler(w http.ResponseWriter, r *http.Request, ses *session.Session
 	if r.Method == http.MethodPost {
 		addPostAction(ses, strg, w, r)
 	} else if r.Method == http.MethodGet {
-		addPostPage(ses, w, r, "")
+		addPostPage(ses, w, r, "", "", "")
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -28,10 +28,18 @@ func AddPostHandler(w http.ResponseWriter, r *http.Request, ses *session.Session
 	}
 }
 
-func addPostPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string) {
-	page := tmpl.PageBase[struct{ AddPostError string }]{
+func addPostPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string, title string, text string) {
+	page := tmpl.PageBase[struct {
+		AddPostError string
+		Title        string
+		Text         string
+	}]{
 		PageName: "addpost",
-		Content:  struct{ AddPostError string }{status},
+		Content: struct {
+			AddPostError string
+			Title        string
+			Text         string
+		}{status, title, text},
 	}
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
@@ -57,12 +65,12 @@ func addPostPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, 
 func addPostAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err != nil {
-		addPostPage(ses, w, r, "Please log in")
+		addPostPage(ses, w, r, "Please log in", "", "")
 		return
 	}
 	username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
 	if !isLoggedIn {
-		addPostPage(ses, w, r, "Please log in")
+		addPostPage(ses, w, r, "Please log in", "", "")
 		return
 	}
 
@@ -71,13 +79,13 @@ func addPostAction(ses *session.Sessions, strg *storage.Storage, w http.Response
 
 	if strings.TrimSpace(title) == "" || strings.TrimSpace(text) == "" {
 		log.Println("Error while adding post: title or text are empty")
-		addPostPage(ses, w, r, "Please make sure both the title and text include at least one letter and aren't just empty.")
+		addPostPage(ses, w, r, "Please make sure both the title and text include at least one letter and aren't just empty.", title, text)
 		return
 	}
 
 	if len(title) > 200 {
 		log.Println("Error while adding post: title it too long, max 200 chars")
-		addPostPage(ses, w, r, "Please make sure the title is up to 200 letters.")
+		addPostPage(ses, w, r, "Please make sure the title is up to 200 letters.", title, text)
 		return
 	}
 
@@ -85,7 +93,7 @@ func addPostAction(ses *session.Sessions, strg *storage.Storage, w http.Response
 
 	if err != nil {
 		log.Println("Error while adding post:", err)
-		addPostPage(ses, w, r, "An unexpected error has occurred")
+		addPostPage(ses, w, r, "An unexpected error has occurred", title, text)
 		return
 	}
 

@@ -1,6 +1,6 @@
 {{define "comment"}}
   <div style="margin-left: {{ .Indentation }}px" class="comment">
-    <p class="metadata creation-date">{{ .CreationDate }}</p>
+    <p class="metadata creation-date" style="margin-top: 0">{{ .CreationDate }}</p>
     <p class="metadata">by {{ .Author }}</p>
     <article>{{ .Text }}</article>
   </div>

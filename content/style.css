@@ -91,6 +91,7 @@ a {
   position: absolute;
   top: 0;
   right: 0;
+  max-width: 15%;
 }
 
 .login-indicator {
