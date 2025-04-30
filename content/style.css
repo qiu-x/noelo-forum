@@ -133,6 +133,12 @@ textarea {
   padding-left: 20px;
 }
 
+.userpage-box {
+    border: 1px solid #555;
+    max-width: 800px;
+    min-height: 300px;
+}
+
 @media only screen and (max-width: 600px) {
   main {
     padding: 0 10px;

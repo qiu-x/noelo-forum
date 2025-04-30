@@ -11,6 +11,22 @@ import (
 	"strings"
 )
 
+func MakeLogoutHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		LogoutHandler(w, r, ses, strg)
+	}
+}
+
+func LogoutHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
+	sessionCookie, err := r.Cookie(session.SessionCookie)
+	if err == nil {
+		ses.Logout(sessionCookie.Value)
+	}
+
+	http.Redirect(w, r, "/active", http.StatusSeeOther)
+	ActiveSection(w, r, ses, strg)
+}
+
 func MakeUserContent(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		UserContent(w, r, ses, strg)
@@ -27,6 +43,11 @@ func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions, 
 	}
 
 	switch resourceType {
+	case storage.USER_RESOURCE:
+		username := strings.FieldsFunc(r.URL.Path, func(c rune) bool {
+			return c == '/'
+		})[0]
+		renderUserPage(ses, strg, username, w, r)
 	case storage.POST_RESOURCE:
 		renderPost(ses, strg, r.URL.Path, "", w, r)
 	case storage.COMMENT_RESOURCE:
@@ -39,8 +60,32 @@ func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions, 
 	}
 }
 
+func renderUserPage(ses *session.Sessions, strg *storage.Storage, username string, w http.ResponseWriter, r *http.Request) {
+	var page tmpl.UserContentPage[tmpl.UserPage]
+
+	sessionCookie, err := r.Cookie(session.SessionCookie)
+	if err == nil {
+		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
+	}
+
+	page.Content = tmpl.UserPage{
+		Username:           username,
+		LogoutButtonActive: page.Username == username,
+	}
+
+	t := template.Must(template.New("").ParseFiles(
+		"../templates/user_page.template",
+		"../templates/page.template",
+	))
+
+	err = t.ExecuteTemplate(w, "page.template", page)
+	if err != nil {
+		log.Println("\"user\" page generation failed:", err)
+	}
+}
+
 func renderPost(ses *session.Sessions, strg *storage.Storage, uri string, status string, w http.ResponseWriter, r *http.Request) {
-	var page tmpl.PostPage[tmpl.TextPost]
+	var page tmpl.UserContentPage[tmpl.TextPost]
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {

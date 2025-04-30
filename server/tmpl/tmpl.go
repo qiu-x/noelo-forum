@@ -26,7 +26,13 @@ type (
 
 // User content related templates
 type (
-	// Matches commnet.template
+	// Matches user_page.template
+	UserPage struct {
+		Username           string
+		LogoutButtonActive bool
+	}
+
+	// Matches comment.template
 	Comment struct {
 		Author       string
 		CreationDate string
@@ -56,9 +62,9 @@ type (
 		Comments      []Comment
 	}
 
-	PostType interface {
-		TextPost | LinkPost
+	PageType interface {
+		UserPage | TextPost | LinkPost
 	}
 
-	PostPage[T PostType] = PageBase[T]
+	UserContentPage[T PageType] = PageBase[T]
 )
