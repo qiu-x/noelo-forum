@@ -11,20 +11,19 @@ import (
 	"strings"
 )
 
-func MakeLogoutHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
+func MakeLogoutHandler(ses *session.Sessions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		LogoutHandler(w, r, ses, strg)
+		LogoutHandler(w, r, ses)
 	}
 }
 
-func LogoutHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
+func LogoutHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err == nil {
 		ses.Logout(sessionCookie.Value)
 	}
 
 	http.Redirect(w, r, "/active", http.StatusSeeOther)
-	ActiveSection(w, r, ses, strg)
 }
 
 func MakeUserContent(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
