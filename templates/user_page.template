@@ -1,0 +1,9 @@
+{{define "pagecontent"}}
+    <div class="userpage-box">
+        <p> {{ .Username }}
+
+    {{ if .LogoutButtonActive }}
+        <a href="/logout">Logout</p>
+    {{ end }}
+    </div> 
+{{end}}

@@ -88,15 +88,26 @@ const (
 	INVALID = iota
 	POST_RESOURCE
 	COMMENT_RESOURCE
+	USER_RESOURCE
 )
 
 func TypeFromURI(path string) (ResourceType, error) {
-	urlparts := strings.Split(path, "/")
+	urlparts := strings.FieldsFunc(path, func(c rune) bool {
+		return c == '/'
+	})
+
+	if len(urlparts) == 1 {
+		userdir := filepath.Join("../storage/users/", urlparts[0])
+		if _, err := os.Stat(userdir); !os.IsNotExist(err) {
+			return USER_RESOURCE, nil
+		}
+	}
+
 	if len(urlparts) < 2 {
 		err := errors.New("invalid URI")
 		return INVALID, err
 	}
-	resourceURI := strings.Split(urlparts[2], ":")
+	resourceURI := strings.Split(urlparts[1], ":")
 	if len(resourceURI) < 2 {
 		err := errors.New("invalid URI")
 		return INVALID, err

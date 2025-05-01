@@ -13,7 +13,7 @@
 <body>
   <header>
     {{if .IsLoggedIn}}
-        <a class="login-indicator">{{ .Username }}</a>
+        <a class="login-indicator" href="/u/{{ .Username }}">{{ .Username }}</a>
     {{else}}
       <a class="login-indicator" href="/login">Login</a>
     {{end}}

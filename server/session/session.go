@@ -70,3 +70,9 @@ func (s *Sessions) Auth(username, pass string) (string, error) {
 	}
 	return sessionToken, nil
 }
+
+func (s *Sessions) Logout(sessionToken string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, sessionToken)
+}
