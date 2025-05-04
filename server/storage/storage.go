@@ -53,14 +53,17 @@ func (s *Storage) AddUser(email, username, pass string) error {
 
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(pass), 8)
 
-	paths := map[any]string{
-		DirPath(userdir): "",
-		DirPath(filepath.Join(userdir, "comment")): "",
-		DirPath(filepath.Join(userdir, "post")):    "",
-		FilePath(filepath.Join(userdir, "email")):  email,
-		FilePath(filepath.Join(userdir, "pass")):   string(hashed),
-	}
-	return createPaths(paths)
+	return createPaths(
+		[]string{
+			userdir,
+			filepath.Join(userdir, "comment"),
+			filepath.Join(userdir, "post"),
+		},
+		map[string]string{
+			filepath.Join(userdir, "email"): email,
+			filepath.Join(userdir, "pass"):  string(hashed),
+		},
+	)
 }
 
 type ResourceType uint
@@ -146,15 +149,18 @@ func (s *Storage) AddPost(username, postName, text string) error {
 		return fmt.Errorf("failed to get next post id: %w", err)
 	}
 
-	paths := map[any]string{
-		DirPath(postDir): "",
-		DirPath(filepath.Join(postDir, "comments")):       "",
-		FilePath(filepath.Join(postDir, "text")):          text,
-		FilePath(filepath.Join(postDir, "title")):         postName,
-		FilePath(filepath.Join(postDir, "creation_date")): time.Now().Format("2006-01-02 15:04"),
-	}
-
-	if err := createPaths(paths); err != nil {
+	err = createPaths(
+		[]string{
+			postDir,
+			filepath.Join(postDir, "comments"),
+		},
+		map[string]string{
+			filepath.Join(postDir, "text"):          text,
+			filepath.Join(postDir, "title"):         postName,
+			filepath.Join(postDir, "creation_date"): time.Now().Format("2006-01-02 15:04"),
+		},
+	)
+	if err != nil {
 		return fmt.Errorf("failed to create post paths: %w", err)
 	}
 
@@ -177,14 +183,18 @@ func (s *Storage) AddComment(username, text, location string) error {
 		return fmt.Errorf("failed to get next comment id: %w", err)
 	}
 
-	paths := map[any]string{
-		DirPath(commentDir):                                  "",
-		DirPath(filepath.Join(commentDir, "replies")):        "",
-		FilePath(filepath.Join(commentDir, "text")):          text,
-		FilePath(filepath.Join(commentDir, "creation_date")): time.Now().Format("2006-01-02 15:04"),
-		FilePath(filepath.Join(commentDir, "location")):      location,
-	}
-	if err := createPaths(paths); err != nil {
+	err = createPaths(
+		[]string{
+			commentDir,
+			filepath.Join(commentDir, "replies"),
+		},
+		map[string]string{
+			filepath.Join(commentDir, "text"):          text,
+			filepath.Join(commentDir, "creation_date"): time.Now().Format("2006-01-02 15:04"),
+			filepath.Join(commentDir, "location"):      location,
+		},
+	)
+	if err != nil {
 		return fmt.Errorf("failed to create comment paths: %w", err)
 	}
 
@@ -199,8 +209,8 @@ func (s *Storage) AddComment(username, text, location string) error {
 	}
 
 	refContent := fmt.Sprintf("/%s/comment:%d", username, id)
-	if err := createPaths(map[any]string{
-		FilePath(commentRef): refContent,
+	if err := createPaths(nil, map[string]string{
+		commentRef: refContent,
 	}); err != nil {
 		return fmt.Errorf("failed to create comment reference: %w", err)
 	}
