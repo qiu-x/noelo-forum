@@ -10,25 +10,31 @@ import (
 	"strings"
 )
 
-func MakeAddPostHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		AddPostHandler(w, r, ses, strg)
-	}
+func AddPostHandler(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		switch r.Method {
+		case http.MethodPost:
+			addPostAction(ses, strg, w, r)
+		case http.MethodGet:
+			addPostPage(ses, w, r, "", "", "")
+		default:
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
+				http.StatusMethodNotAllowed)
+		}
+	})
 }
 
-func AddPostHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
-	if r.Method == http.MethodPost {
-		addPostAction(ses, strg, w, r)
-	} else if r.Method == http.MethodGet {
-		addPostPage(ses, w, r, "", "", "")
-	} else {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
-		return
-	}
-}
-
-func addPostPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, status string, title string, text string) {
+func addPostPage(
+	ses *session.Sessions,
+	w http.ResponseWriter,
+	r *http.Request,
+	status string,
+	title string,
+	text string,
+) {
 	page := tmpl.PageBase[struct {
 		AddPostError string
 		Title        string
@@ -55,14 +61,22 @@ func addPostPage(ses *session.Sessions, w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/addpost.template"))
+	t := template.Must(template.ParseFiles(
+		"../templates/page.template",
+		"../templates/addpost.template",
+	))
 	err = t.Execute(w, page)
 	if err != nil {
 		log.Println("\"addPost\" page generation failed:", err)
 	}
 }
 
-func addPostAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
+func addPostAction(
+	ses *session.Sessions,
+	strg *storage.Storage,
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	sessionCookie, err := r.Cookie(session.SessionCookie)
 	if err != nil {
 		addPostPage(ses, w, r, "Please log in", "", "")

@@ -1,93 +1,111 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"forumapp/page"
+	"fmt"
 	"forumapp/session"
 	"forumapp/storage"
-	"log"
+	"io"
+	"log/slog"
+	"net"
 	"net/http"
 	"os"
-	"strings"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"github.com/lmittmann/tint"
 )
 
-const HELP = ` Flags:
---port, -p
-        Set the application port
---help, -h
-        Print this message
-`
-
-func FileServerFilter() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Disable dir listing
-		if strings.HasSuffix(r.URL.Path, "/") && r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Cache-Control", "max-age=432000")
-	})
+type Config struct {
+	Host string
+	Port string
 }
 
-func ChainedHandlers(chain ...http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, v := range chain {
-			v.ServeHTTP(w, r)
-		}
-	})
-}
-
-func setupEndpoints(mux *http.ServeMux) {
-	sessions := session.NewSessions()
-	strg := &storage.Storage{}
-
-	fs := http.FileServer(http.Dir("../content/"))
-	mux.Handle("GET /content/", http.StripPrefix("/content", fs))
-	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../content/favicon.ico")
-	})
-
-	mux.HandleFunc("GET /feed", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../storage/feed")
-	})
-
-	mux.Handle("/", page.MainPageHandler())
-	mux.HandleFunc("GET /active", page.MakeActiveHandler(sessions, strg))
-	mux.HandleFunc("/login", page.MakeLoginHandler(sessions))
-	mux.HandleFunc("/register", page.MakeRegisterHandler(sessions, strg))
-	mux.Handle("GET /u/",
-		http.StripPrefix("/u",
-			http.HandlerFunc(page.MakeUserContent(sessions, strg))))
-	mux.HandleFunc("GET /logout", page.MakeLogoutHandler(sessions))
-	mux.HandleFunc("POST /comment", page.MakeCommentAction(sessions, strg))
-	mux.HandleFunc("/addpost", page.MakeAddPostHandler(sessions, strg))
-}
-
-func main() {
-	var port string
-
-	flags := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	flags.StringVar(&port, "port", "80", "Application Port")
-	flags.StringVar(&port, "p", "80", "Application Port")
-	err := flags.Parse(os.Args[1:])
+func newConfig(args []string) (Config, error) {
+	var cfg Config
+	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
+	err := flags.Parse(args[1:])
+	flags.StringVar(&cfg.Host, "host", "0.0.0.0", "Application Host IP")
+	flags.StringVar(&cfg.Port, "port", "8080", "Application Port")
 	if err != nil {
-		log.Fatal(err)
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+func NewServer(
+	logger *slog.Logger,
+	ses *session.Sessions,
+	strg *storage.Storage,
+) http.Handler {
+	mux := http.NewServeMux()
+	addRoutes(
+		mux,
+		ses,
+		strg,
+	)
+	var handler http.Handler = mux
+	handler = LoggerMiddleware(logger, handler)
+	return handler
+}
+
+func run(ctx context.Context, w io.Writer, e io.Writer, args []string) error {
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+
+	cfg, err := newConfig(args)
+	if err != nil {
+		fmt.Fprintf(e, "error parsing cmd args: %s\n", err)
 	}
 
 	mux := http.NewServeMux()
+	logger := slog.New(tint.NewHandler(w, nil))
+	sessions := session.NewSessions()
+	strg := &storage.Storage{}
 
-	setupEndpoints(mux)
-
-	s := &http.Server{
-		Addr:           ":" + port,
-		Handler:        mux,
+	addRoutes(mux, sessions, strg)
+	srv := NewServer(
+		logger,
+		sessions,
+		strg,
+	)
+	httpServer := &http.Server{
+		Addr:           net.JoinHostPort(cfg.Host, cfg.Port),
+		Handler:        srv,
 		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		WriteTimeout:   30 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	log.Println("Listening on port: ", port)
-	if err := s.ListenAndServe(); err != nil {
-		log.Fatalf("Server error: %s", err.Error())
+
+	go func() {
+		logger.Info("Listening on",
+			slog.String("host", cfg.Host),
+			slog.String("port", cfg.Port),
+		)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(e, "error listening and serving: %s\n", err)
+		}
+	}()
+
+	<-ctx.Done()
+	logger.Info("shutting down gracefully...")
+	shutdownCtx := context.Background()
+	shutdownCtx, timeoutCancel := context.WithTimeout(shutdownCtx, 10*time.Second)
+	defer timeoutCancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		fmt.Fprintf(e, "error shutting down http server: %s\n", err)
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	if err := run(ctx, os.Stdout, os.Stderr, os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }

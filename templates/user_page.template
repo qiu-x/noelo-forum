@@ -7,7 +7,7 @@
       {{ end }}
     </div>
 
-    <p>There will be a description someday...</p>
+    <p>There will be description support someday...</p>
     <br/>
     <h2 style="margin: 1% 0%">User activity:</h2>
     <div class="userpage-line"></div>
