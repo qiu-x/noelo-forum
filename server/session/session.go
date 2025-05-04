@@ -53,7 +53,7 @@ func (s *Sessions) Auth(username, pass string) (string, error) {
 	defer s.mu.Unlock()
 
 	// Sanitize username
-	username = strings.Replace(username, "/", "∕", -1)
+	username = strings.ReplaceAll(username, "/", "∕")
 
 	userdir := filepath.Join("../storage/users/", username)
 	storedPass, _ := os.ReadFile(filepath.Join(userdir, "/pass"))

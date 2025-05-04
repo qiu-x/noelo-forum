@@ -11,55 +11,57 @@ import (
 	"strings"
 )
 
-func MakeLogoutHandler(ses *session.Sessions) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		LogoutHandler(w, r, ses)
-	}
+func LogoutHandler(ses *session.Sessions) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		sessionCookie, err := r.Cookie(session.SessionCookie)
+		if err == nil {
+			ses.Logout(sessionCookie.Value)
+		}
+
+		http.Redirect(w, r, "/active", http.StatusSeeOther)
+	})
 }
 
-func LogoutHandler(w http.ResponseWriter, r *http.Request, ses *session.Sessions) {
-	sessionCookie, err := r.Cookie(session.SessionCookie)
-	if err == nil {
-		ses.Logout(sessionCookie.Value)
-	}
+func UserContent(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		resourceType, err := storage.TypeFromURI(r.URL.Path)
+		if err != nil {
+			NotFoundHandler(w, r)
+			return
+		}
 
-	http.Redirect(w, r, "/active", http.StatusSeeOther)
+		switch resourceType {
+		case storage.USER_RESOURCE:
+			username := strings.FieldsFunc(r.URL.Path, func(c rune) bool {
+				return c == '/'
+			})[0]
+			renderUserPage(ses, strg, username, w, r)
+		case storage.POST_RESOURCE:
+			renderPost(ses, strg, r.URL.Path, "", w, r)
+		case storage.COMMENT_RESOURCE:
+			// TODO: render standalone comments with replies (direct link to comment)
+			// renderComment(resourcePath, user, w)
+			panic("unimplemented!")
+		default:
+			NotFoundHandler(w, r)
+			return
+		}
+	})
 }
 
-func MakeUserContent(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		UserContent(w, r, ses, strg)
-	}
-}
-
-func UserContent(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
-	log.Println("resource url:", r.URL.Path)
-
-	resourceType, err := storage.TypeFromURI(r.URL.Path)
-	if err != nil {
-		NotFoundHandler(w, r)
-		return
-	}
-
-	switch resourceType {
-	case storage.USER_RESOURCE:
-		username := strings.FieldsFunc(r.URL.Path, func(c rune) bool {
-			return c == '/'
-		})[0]
-		renderUserPage(ses, strg, username, w, r)
-	case storage.POST_RESOURCE:
-		renderPost(ses, strg, r.URL.Path, "", w, r)
-	case storage.COMMENT_RESOURCE:
-		// TODO: render standalone comments with replies (direct link to comment)
-		// renderComment(resourcePath, user, w)
-		panic("unimplemented!")
-	default:
-		NotFoundHandler(w, r)
-		return
-	}
-}
-
-func renderUserPage(ses *session.Sessions, strg *storage.Storage, username string, w http.ResponseWriter, r *http.Request) {
+func renderUserPage(
+	ses *session.Sessions,
+	strg *storage.Storage,
+	username string,
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	var page tmpl.UserContentPage[tmpl.UserPage]
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
@@ -85,7 +87,14 @@ func renderUserPage(ses *session.Sessions, strg *storage.Storage, username strin
 	}
 }
 
-func renderPost(ses *session.Sessions, strg *storage.Storage, uri string, status string, w http.ResponseWriter, r *http.Request) {
+func renderPost(
+	ses *session.Sessions,
+	strg *storage.Storage,
+	uri string,
+	status string,
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	var page tmpl.UserContentPage[tmpl.TextPost]
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
@@ -122,41 +131,40 @@ func renderPost(ses *session.Sessions, strg *storage.Storage, uri string, status
 	}
 }
 
-func MakeCommentAction(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		CommentAction(w, r, ses, strg)
-	}
-}
+func CommentAction(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		location := r.FormValue("location")
+		text := r.FormValue("comment")
 
-func CommentAction(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
-	location := r.FormValue("location")
-	text := r.FormValue("comment")
+		sessionCookie, err := r.Cookie(session.SessionCookie)
+		if err != nil {
+			log.Println("Error: auth failed")
+			renderPost(ses, strg, location, "auth failed", w, r)
+			return
+		}
+		username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
+		if !isLoggedIn {
+			log.Println("Error: not logged in")
+			renderPost(ses, strg, location, "not logged in", w, r)
+			return
+		}
 
-	sessionCookie, err := r.Cookie(session.SessionCookie)
-	if err != nil {
-		log.Println("Error: auth failed")
-		renderPost(ses, strg, location, "auth failed", w, r)
-		return
-	}
-	username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
-	if !isLoggedIn {
-		log.Println("Error: not logged in")
-		renderPost(ses, strg, location, "not logged in", w, r)
-		return
-	}
+		if strings.TrimSpace(text) == "" {
+			log.Println("Error while adding comment: text is empty")
+			renderPost(ses, strg, location, "Please make sure the text include at least one letter and isn't just empty.", w, r)
+			return
+		}
 
-	if strings.TrimSpace(text) == "" {
-		log.Println("Error while adding comment: text is empty")
-		renderPost(ses, strg, location, "Please make sure the text include at least one letter and isn't just empty.", w, r)
-		return
-	}
+		err = strg.AddComment(username, text, location)
+		if err != nil {
+			log.Println("Error: ", err)
+			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
+			return
+		}
 
-	err = strg.AddComment(username, text, location)
-	if err != nil {
-		log.Println("Error: ", err)
-		renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
-		return
-	}
-
-	http.Redirect(w, r, r.Header.Get("Referer"), 302)
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+	})
 }
