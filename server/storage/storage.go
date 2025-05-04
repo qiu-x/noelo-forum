@@ -405,6 +405,35 @@ func (s *Storage) GetRecentlyActive(count uint) []tmpl.ArticleItem {
 	return articles
 }
 
+func (s *Storage) GetUserArticles(username string) []tmpl.ArticleItem {
+	var articles []tmpl.ArticleItem
+
+	userPosts := filepath.Join("../storage/users", username, "post")
+	userPostsDir, err := os.ReadDir(userPosts)
+	if err != nil {
+		return []tmpl.ArticleItem{}
+	}
+
+	for _, v := range userPostsDir {
+		title, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "title"))
+		if err != nil {
+			continue
+		}
+		creation_date, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "creation_date"))
+		if err != nil {
+			continue
+		}
+		articles = append(articles, tmpl.ArticleItem{
+			Title:        string(title),
+			Author:       username,
+			CreationDate: string(creation_date),
+			PostLink:     "/u/" + username + "/post:" + v.Name(),
+		})
+	}
+
+	return articles
+}
+
 func (s *Storage) GetAllArticles() []tmpl.ArticleItem {
 	var articles []tmpl.ArticleItem
 	dirPath := "../storage/users"
@@ -417,27 +446,11 @@ func (s *Storage) GetAllArticles() []tmpl.ArticleItem {
 		if !userData.IsDir() {
 			continue
 		}
-		userPosts := filepath.Join(dirPath, userData.Name(), "post")
-		userPostsDir, err := os.ReadDir(userPosts)
-		if err != nil {
+		userArticles := s.GetUserArticles(userData.Name())
+		if len(userArticles) == 0 {
 			continue
 		}
-		for _, v := range userPostsDir {
-			title, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "title"))
-			if err != nil {
-				continue
-			}
-			creation_date, err := os.ReadFile(filepath.Join(userPosts, v.Name(), "creation_date"))
-			if err != nil {
-				continue
-			}
-			articles = append(articles, tmpl.ArticleItem{
-				Title:        string(title),
-				Author:       userData.Name(),
-				CreationDate: string(creation_date),
-				PostLink:     "/u/" + userData.Name() + "/post:" + v.Name(),
-			})
-		}
+		articles = append(articles, userArticles...)
 	}
 
 	return articles

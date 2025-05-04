@@ -10,7 +10,7 @@ type PageBase[T any] struct {
 
 // Main view related templates
 type (
-	SectionPage[T ItemType] = PageBase[[]T]
+	SectionPage[T ItemType] = PageBase[T]
 
 	ArticleItem struct {
 		Title        string
@@ -19,8 +19,12 @@ type (
 		PostLink     string
 	}
 
+	ActiveSection struct {
+		TextPosts []ArticleItem
+	}
+
 	ItemType interface {
-		ArticleItem
+		ActiveSection
 	}
 )
 
@@ -30,6 +34,7 @@ type (
 	UserPage struct {
 		Username           string
 		LogoutButtonActive bool
+		TextPosts          []ArticleItem
 	}
 
 	// Matches comment.template
