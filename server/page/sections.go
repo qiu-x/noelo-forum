@@ -10,15 +10,19 @@ import (
 )
 
 func MakeActiveHandler(ses *session.Sessions, strg *storage.Storage) http.HandlerFunc {
-	return func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		ActiveSection(w, r, ses, strg)
 	}
 }
 
 func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions, strg *storage.Storage) {
-	page := tmpl.SectionPage[tmpl.ArticleItem]{
+	article_list_tmpl := tmpl.ActiveSection{
+		TextPosts: strg.GetRecentlyActive(10),
+	}
+
+	page := tmpl.SectionPage[tmpl.ActiveSection]{
 		PageName: "active",
-		Content:  strg.GetRecentlyActive(10),
+		Content:  article_list_tmpl,
 	}
 
 	sessionCookie, err := r.Cookie(session.SessionCookie)
@@ -26,7 +30,7 @@ func ActiveSection(w http.ResponseWriter, r *http.Request, ses *session.Sessions
 		page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
 	}
 
-	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/article_list.template"))
+	t := template.Must(template.ParseFiles("../templates/page.template", "../templates/active_section.template", "../templates/article_list.template"))
 	err = t.Execute(w, page)
 	if err != nil {
 		log.Println("\"active\" page generation failed:", err)

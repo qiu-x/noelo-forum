@@ -1,4 +1,4 @@
-{{define "pagecontent"}}
+{{define "article_list"}}
 	{{range .}}
 	  <div class="news-item">
 	    <h2><a href="{{ .PostLink }}">{{ .Title }}</a></h2>

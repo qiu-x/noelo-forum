@@ -1,9 +1,16 @@
 {{define "pagecontent"}}
-    <div class="userpage-box">
-        <p> {{ .Username }}
+  <div class="userpage-box">
+    <div class="userpage-header">
+      <h2> {{ .Username }} </h2>
+      {{ if .LogoutButtonActive }}
+        <a class="logout-button" href="/logout">Logout</a>
+      {{ end }}
+    </div>
 
-    {{ if .LogoutButtonActive }}
-        <a href="/logout">Logout</p>
-    {{ end }}
-    </div> 
+    <p>There will be a description someday...</p>
+    <br/>
+    <h2 style="margin: 1% 0%">User activity:</h2>
+    <div class="userpage-line"></div>
+    {{template "article_list" .TextPosts}}
+  </div>
 {{end}}

@@ -70,10 +70,12 @@ func renderUserPage(ses *session.Sessions, strg *storage.Storage, username strin
 	page.Content = tmpl.UserPage{
 		Username:           username,
 		LogoutButtonActive: page.Username == username,
+		TextPosts:          strg.GetUserArticles(username),
 	}
 
 	t := template.Must(template.New("").ParseFiles(
 		"../templates/user_page.template",
+		"../templates/article_list.template",
 		"../templates/page.template",
 	))
 

@@ -1,0 +1,4 @@
+{{define "pagecontent"}}
+    {{template "article_list" .TextPosts}}
+    </div> 
+{{end}}
