@@ -60,10 +60,14 @@ func run(ctx context.Context, w io.Writer, e io.Writer, args []string) error {
 		fmt.Fprintf(e, "error parsing cmd args: %s\n", err)
 	}
 
+	strg, err := storage.NewStorage()
+	if err != nil {
+		fmt.Fprintf(e, "failed to initialize storage: %s\n", err)
+	}
+
 	mux := http.NewServeMux()
 	logger := slog.New(tint.NewHandler(w, nil))
 	sessions := session.NewSessions()
-	strg := &storage.Storage{}
 
 	addRoutes(mux, sessions, strg)
 	srv := NewServer(

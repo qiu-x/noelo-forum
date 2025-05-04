@@ -20,6 +20,17 @@ type Storage struct {
 	mu sync.Mutex
 }
 
+func NewStorage() (*Storage, error) {
+	p := "../storage/users"
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		return &Storage{}, nil
+	}
+	if err := os.Mkdir(p, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create dir %s: %w", p, err)
+	}
+	return &Storage{}, nil
+}
+
 var (
 	ErrRegister        = errors.New("registration error")
 	ErrInvalidUserData = fmt.Errorf("invalid user data: %w", ErrRegister)
