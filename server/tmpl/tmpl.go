@@ -39,12 +39,14 @@ type (
 
 	// Matches comment.template
 	Comment struct {
-		Author       string
-		CreationDate string
-		Location     string
-		Text         string
-		Indentation  int
-		Replies      []Comment
+		Author        string
+		CreationDate  string
+		Location      string
+		UserLocation  string
+		Text          string
+		ShowReplyForm bool
+		Indentation   int
+		Replies       []Comment
 	}
 
 	// Matches linkpost.template

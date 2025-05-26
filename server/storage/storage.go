@@ -169,18 +169,18 @@ func (s *Storage) AddPost(username, postName, text string) error {
 	return nil
 }
 
-func (s *Storage) AddComment(username, text, location string) error {
+func (s *Storage) AddComment(username, text, location string) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	userdir := filepath.Join("../storage/users/", username)
 	if _, err := os.Stat(userdir); os.IsNotExist(err) {
-		return fmt.Errorf("logged in as non existing user: %w", err)
+		return 0, fmt.Errorf("logged in as non existing user: %w", err)
 	}
 
 	commentDir, id, err := getNextName(filepath.Join(userdir, "comment"))
 	if err != nil {
-		return fmt.Errorf("failed to get next comment id: %w", err)
+		return 0, fmt.Errorf("failed to get next comment id: %w", err)
 	}
 
 	err = createPaths(
@@ -195,15 +195,19 @@ func (s *Storage) AddComment(username, text, location string) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create comment paths: %w", err)
+		return 0, fmt.Errorf("failed to create comment paths: %w", err)
 	}
 
+	return id, nil
+}
+
+func (s *Storage) AddCommentRef(username, location, root_location, dir string, id int) error {
 	_, _, resourcePath, err := parseUserResourceURI(location)
 	if err != nil {
 		return fmt.Errorf("failed to parse comment location: %w", err)
 	}
 
-	commentRef, _, err := getNextName(filepath.Join(resourcePath, "comments"))
+	commentRef, _, err := getNextName(filepath.Join(resourcePath, dir))
 	if err != nil {
 		return fmt.Errorf("failed to get next comment reference: %w", err)
 	}
@@ -215,7 +219,8 @@ func (s *Storage) AddComment(username, text, location string) error {
 		return fmt.Errorf("failed to create comment reference: %w", err)
 	}
 
-	_ = s.updateRecents(location)
+	_ = s.updateRecents(root_location)
+
 	return nil
 }
 
@@ -268,7 +273,7 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 	}, nil
 }
 
-func parseComment(resourcePath string, user string) (tmpl.Comment, bool) {
+func parseComment(resourcePath string, user string, id int) (tmpl.Comment, bool) {
 	creation_date, err := os.ReadFile(filepath.Join(resourcePath, "creation_date"))
 	if err != nil {
 		return tmpl.Comment{}, false
@@ -285,10 +290,13 @@ func parseComment(resourcePath string, user string) (tmpl.Comment, bool) {
 	if err != nil {
 		return tmpl.Comment{}, false
 	}
+	userLocation := fmt.Sprintf("/%s/comment:%d", user, id)
+
 	return tmpl.Comment{
 		Author:       user,
 		CreationDate: string(creation_date),
 		Location:     string(location),
+		UserLocation: userLocation,
 		Text:         string(text),
 		Replies:      replies,
 	}, true
@@ -301,7 +309,8 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 	if err != nil {
 		return []tmpl.Comment{}, err
 	}
-	for _, file := range files {
+
+	for id, file := range files {
 		if file.IsDir() {
 			continue
 		}
@@ -313,7 +322,7 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 		if err != nil {
 			continue
 		}
-		comment, ok := parseComment(resourcePath, user)
+		comment, ok := parseComment(resourcePath, user, id)
 		if !ok {
 			continue
 		}

@@ -158,7 +158,60 @@ func CommentAction(ses *session.Sessions, strg *storage.Storage) http.Handler {
 			return
 		}
 
-		err = strg.AddComment(username, text, location)
+		id, err := strg.AddComment(username, text, location)
+		if err != nil {
+			log.Println("Error: ", err)
+			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
+			return
+		}
+
+		err = strg.AddCommentRef(username, location, location, "comments", id)
+		if err != nil {
+			log.Println("Error: ", err)
+			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
+			return
+		}
+
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+	})
+}
+
+func ReplyAction(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		location := r.FormValue("location")
+		user_location := r.FormValue("user_location")
+		text := r.FormValue("comment")
+
+		sessionCookie, err := r.Cookie(session.SessionCookie)
+		if err != nil {
+			log.Println("Error: auth failed")
+			renderPost(ses, strg, location, "auth failed", w, r)
+			return
+		}
+		username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
+		if !isLoggedIn {
+			log.Println("Error: not logged in")
+			renderPost(ses, strg, location, "not logged in", w, r)
+			return
+		}
+
+		if strings.TrimSpace(text) == "" {
+			log.Println("Error while adding comment: text is empty")
+			renderPost(ses, strg, location, "Please make sure the text include at least one letter and isn't just empty.", w, r)
+			return
+		}
+
+		id, err := strg.AddComment(username, text, user_location)
+		if err != nil {
+			log.Println("Error: ", err)
+			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
+			return
+		}
+
+		err = strg.AddCommentRef(username, user_location, location, "replies", id)
 		if err != nil {
 			log.Println("Error: ", err)
 			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)

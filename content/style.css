@@ -94,6 +94,33 @@ a {
   max-width: 15%;
 }
 
+.reply-checkbox {
+    display: none;
+}
+
+.reply-form {
+    margin-top: 14px;
+    display: none;
+}
+
+.reply-btn {
+    cursor: pointer;
+    margin: 0 0 14px 0;
+    user-select: none;
+}
+
+.reply-checkbox:checked + p label.reply-btn {
+    text-decoration: underline;
+}
+
+.reply-checkbox:checked ~ .reply-form {
+    display: block;
+}
+
+.reply-btn + input[type=checkbox]:checked ~ .reply-form{
+display: none;
+}
+
 .login-indicator {
   float: right;
   margin: 0px;
