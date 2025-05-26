@@ -38,6 +38,7 @@ func addRoutes(mux *http.ServeMux, sessions *session.Sessions, strg *storage.Sto
 	mux.Handle("GET /u/", http.StripPrefix("/u", page.UserContent(sessions, strg)))
 	mux.Handle("GET /logout", page.LogoutHandler(sessions))
 	mux.Handle("POST /comment", page.CommentAction(sessions, strg))
+	mux.Handle("POST /reply", page.ReplyAction(sessions, strg))
 	mux.Handle("/login", page.LoginHandler(sessions))
 	mux.Handle("/register", page.RegisterHandler(sessions, strg))
 	mux.Handle("/addpost", page.AddPostHandler(sessions, strg))
