@@ -109,7 +109,7 @@ func TypeFromURI(path string) (ResourceType, error) {
 	}
 }
 
-func parseUserResourceURI(path string) (user string, resourceType string, resourcePath string, err error) {
+func parseUserResourceURI(path string) (user string, resourceType string, resourcePath string, resourceID string, err error) {
 	urlparts := strings.Split(path, "/")
 	if len(urlparts) < 2 {
 		err = errors.New("invalid URI")
@@ -121,7 +121,7 @@ func parseUserResourceURI(path string) (user string, resourceType string, resour
 		return
 	}
 	user = urlparts[1]
-	resourceID := resourceURI[1]
+	resourceID = resourceURI[1]
 	resourceType = resourceURI[0]
 
 	supportedTypes := []string{"post", "comment"}
@@ -202,7 +202,7 @@ func (s *Storage) AddComment(username, text, location string) (int, error) {
 }
 
 func (s *Storage) AddCommentRef(username, location, root_location, dir string, id int) error {
-	_, _, resourcePath, err := parseUserResourceURI(location)
+	_, _, resourcePath, _, err := parseUserResourceURI(location)
 	if err != nil {
 		return fmt.Errorf("failed to parse comment location: %w", err)
 	}
@@ -242,7 +242,7 @@ func getNextName(basePath string) (string, int, error) {
 }
 
 func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
-	user, _, resourcePath, err := parseUserResourceURI(uri)
+	user, _, resourcePath, _, err := parseUserResourceURI(uri)
 	if err != nil {
 		return tmpl.TextPost{}, fmt.Errorf("failed to parse post location: %w", err)
 	}
@@ -273,7 +273,7 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 	}, nil
 }
 
-func parseComment(resourcePath string, user string, id int) (tmpl.Comment, bool) {
+func parseComment(resourcePath string, user string, id string) (tmpl.Comment, bool) {
 	creation_date, err := os.ReadFile(filepath.Join(resourcePath, "creation_date"))
 	if err != nil {
 		return tmpl.Comment{}, false
@@ -290,7 +290,7 @@ func parseComment(resourcePath string, user string, id int) (tmpl.Comment, bool)
 	if err != nil {
 		return tmpl.Comment{}, false
 	}
-	userLocation := fmt.Sprintf("/%s/comment:%d", user, id)
+	userLocation := fmt.Sprintf("/%s/comment:%s", user, id)
 
 	return tmpl.Comment{
 		Author:       user,
@@ -310,7 +310,7 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 		return []tmpl.Comment{}, err
 	}
 
-	for id, file := range files {
+	for _, file := range files {
 		if file.IsDir() {
 			continue
 		}
@@ -318,7 +318,7 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 		if err != nil {
 			continue
 		}
-		user, _, resourcePath, err := parseUserResourceURI(strings.TrimSpace(string(commentURI)))
+		user, _, resourcePath, id, err := parseUserResourceURI(strings.TrimSpace(string(commentURI)))
 		if err != nil {
 			continue
 		}
@@ -348,7 +348,7 @@ func (s *Storage) GetRecentlyActive(count uint) []tmpl.ArticleItem {
 
 	var articles []tmpl.ArticleItem
 	for _, v := range dedupedURIs {
-		user, _, resourcePath, err := parseUserResourceURI(v)
+		user, _, resourcePath, _, err := parseUserResourceURI(v)
 		if err != nil {
 			continue
 		}
