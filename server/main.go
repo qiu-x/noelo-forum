@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"forumapp/session"
@@ -57,19 +58,17 @@ func run(ctx context.Context, w io.Writer, e io.Writer, args []string) error {
 
 	cfg, err := newConfig(args)
 	if err != nil {
-		fmt.Fprintf(e, "error parsing cmd args: %s\n", err)
+		_, _ = fmt.Fprintf(e, "error parsing cmd args: %s\n", err)
 	}
 
 	strg, err := storage.NewStorage()
 	if err != nil {
-		fmt.Fprintf(e, "failed to initialize storage: %s\n", err)
+		_, _ = fmt.Fprintf(e, "failed to initialize storage: %s\n", err)
 	}
 
-	mux := http.NewServeMux()
 	logger := slog.New(tint.NewHandler(w, nil))
 	sessions := session.NewSessions()
 
-	addRoutes(mux, sessions, strg)
 	srv := NewServer(
 		logger,
 		sessions,
@@ -88,18 +87,17 @@ func run(ctx context.Context, w io.Writer, e io.Writer, args []string) error {
 			slog.String("host", cfg.Host),
 			slog.String("port", cfg.Port),
 		)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(e, "error listening and serving: %s\n", err)
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			_, _ = fmt.Fprintf(e, "error listening and serving: %s\n", err)
 		}
 	}()
 
 	<-ctx.Done()
 	logger.Info("shutting down gracefully...")
-	shutdownCtx := context.Background()
-	shutdownCtx, timeoutCancel := context.WithTimeout(shutdownCtx, 10*time.Second)
+	shutdownCtx, timeoutCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer timeoutCancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		fmt.Fprintf(e, "error shutting down http server: %s\n", err)
+		_, _ = fmt.Fprintf(e, "error shutting down http server: %s\n", err)
 		return err
 	}
 

@@ -21,7 +21,7 @@ func createDirs(entries []string) error {
 	}
 
 	for _, path := range entries {
-		if err := os.Mkdir(path, 0755); err != nil {
+		if err := os.Mkdir(path, 0750); err != nil {
 			return fmt.Errorf("failed to create dir %s: %w", path, err)
 		}
 	}

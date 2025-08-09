@@ -135,13 +135,14 @@ func registerAction(
 
 	err := strg.AddUser(email, username, pass)
 
-	if errors.Is(err, storage.ErrInvalidUserData) {
+	switch {
+	case errors.Is(err, storage.ErrInvalidUserData):
 		registerPage(t, ses, w, r, "Invalid registration request")
 		return
-	} else if errors.Is(err, storage.ErrUserExists) {
+	case errors.Is(err, storage.ErrUserExists):
 		registerPage(t, ses, w, r, "Account already exists")
 		return
-	} else if err != nil {
+	case err != nil:
 		log.Println("Account creation error:", err)
 		registerPage(t, ses, w, r, "An unexpected error has occurred") // should never happen
 		return
