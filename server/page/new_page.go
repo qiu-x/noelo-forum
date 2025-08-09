@@ -93,7 +93,12 @@ func addPostAction(
 
 	if strings.TrimSpace(title) == "" || strings.TrimSpace(text) == "" {
 		log.Println("Error while adding post: title or text are empty")
-		addPostPage(ses, w, r, "Please make sure both the title and text include at least one letter and aren't just empty.", title, text)
+		addPostPage(ses,
+			w,
+			r,
+			"Please make sure both the title and text include at least one letter and aren't just empty.",
+			title,
+			text)
 		return
 	}
 

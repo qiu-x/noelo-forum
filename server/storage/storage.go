@@ -35,6 +35,9 @@ var (
 	ErrRegister        = errors.New("registration error")
 	ErrInvalidUserData = fmt.Errorf("invalid user data: %w", ErrRegister)
 	ErrUserExists      = fmt.Errorf("user already exists: %w", ErrRegister)
+
+	ErrInvalidURI              = errors.New("invalid URI")
+	ErrUnsupportedResourceType = errors.New("unsupported type")
 )
 
 func (s *Storage) AddUser(email, username, pass string) error {
@@ -88,13 +91,11 @@ func TypeFromURI(path string) (ResourceType, error) {
 	}
 
 	if len(urlparts) < 2 {
-		err := errors.New("invalid URI")
-		return INVALID, err
+		return INVALID, ErrInvalidURI
 	}
 	resourceURI := strings.Split(urlparts[1], ":")
 	if len(resourceURI) < 2 {
-		err := errors.New("invalid URI")
-		return INVALID, err
+		return INVALID, ErrInvalidURI
 	}
 	resourceType := resourceURI[0]
 
@@ -104,29 +105,33 @@ func TypeFromURI(path string) (ResourceType, error) {
 	case "comment":
 		return POST_RESOURCE, nil
 	default:
-		err := errors.New("unsupported Type:" + resourceType)
-		return INVALID, err
+		return INVALID, ErrUnsupportedResourceType
 	}
 }
 
-func parseUserResourceURI(path string) (user string, resourceType string, resourcePath string, resourceID string, err error) {
+func parseUserResourceURI(path string) (
+	user string,
+	resourcePath string,
+	resourceID string,
+	err error,
+) {
 	urlparts := strings.Split(path, "/")
 	if len(urlparts) < 2 {
-		err = errors.New("invalid URI")
+		err = ErrInvalidURI
 		return
 	}
 	resourceURI := strings.Split(urlparts[2], ":")
 	if len(resourceURI) < 2 {
-		err = errors.New("invalid URI")
+		err = ErrInvalidURI
 		return
 	}
 	user = urlparts[1]
 	resourceID = resourceURI[1]
-	resourceType = resourceURI[0]
+	resourceType := resourceURI[0]
 
 	supportedTypes := []string{"post", "comment"}
 	if !slices.Contains(supportedTypes, resourceType) {
-		err = errors.New("unsupported Type:" + resourceType)
+		err = ErrUnsupportedResourceType
 		return
 	}
 
@@ -202,7 +207,7 @@ func (s *Storage) AddComment(username, text, location string) (int, error) {
 }
 
 func (s *Storage) AddCommentRef(username, location, root_location, dir string, id int) error {
-	_, _, resourcePath, _, err := parseUserResourceURI(location)
+	_, resourcePath, _, err := parseUserResourceURI(location)
 	if err != nil {
 		return fmt.Errorf("failed to parse comment location: %w", err)
 	}
@@ -242,7 +247,7 @@ func getNextName(basePath string) (string, int, error) {
 }
 
 func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
-	user, _, resourcePath, _, err := parseUserResourceURI(uri)
+	user, resourcePath, _, err := parseUserResourceURI(uri)
 	if err != nil {
 		return tmpl.TextPost{}, fmt.Errorf("failed to parse post location: %w", err)
 	}
@@ -318,7 +323,7 @@ func getReplies(postPath, commentDirName string) ([]tmpl.Comment, error) {
 		if err != nil {
 			continue
 		}
-		user, _, resourcePath, id, err := parseUserResourceURI(strings.TrimSpace(string(commentURI)))
+		user, resourcePath, id, err := parseUserResourceURI(strings.TrimSpace(string(commentURI)))
 		if err != nil {
 			continue
 		}
@@ -348,7 +353,7 @@ func (s *Storage) GetRecentlyActive(count uint) []tmpl.ArticleItem {
 
 	var articles []tmpl.ArticleItem
 	for _, v := range dedupedURIs {
-		user, _, resourcePath, _, err := parseUserResourceURI(v)
+		user, resourcePath, _, err := parseUserResourceURI(v)
 		if err != nil {
 			continue
 		}
