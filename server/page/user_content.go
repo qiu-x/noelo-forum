@@ -150,11 +150,47 @@ func renderPost(
 	}
 }
 
+func VoteAction(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		location := r.FormValue("location")
+		vote := r.FormValue("vote")
+		author := r.FormValue("auhtor")
+
+		sessionCookie, err := r.Cookie(session.SessionCookie)
+		if err != nil {
+			log.Println("Error: auth failed")
+			renderPost(ses, strg, location, "auth failed", w, r)
+			return
+		}
+		username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
+		if !isLoggedIn {
+			log.Println("Error: not logged in")
+			renderPost(ses, strg, location, "not logged in", w, r)
+			return
+		}
+		if username == "" {
+			return
+		}
+
+		errr := strg.AddVote(author, vote, location)
+		if errr != nil {
+			return
+		}
+
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+		//TODO: proper strg.handlevote
+	})
+}
+
 func CommentAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
+
 	location := r.FormValue("location")
 	text := r.FormValue("comment")
-
 	sessionCookie, err := r.Cookie(session.SessionCookie)
+
 	if err != nil {
 		log.Println("Error: auth failed")
 		renderPost(ses, strg, location, "auth failed", w, r)

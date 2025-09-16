@@ -67,6 +67,7 @@ type (
 		CreationDate  string
 		TextPostError string
 		Comments      []Comment
+		Upvotes       string
 	}
 
 	PageType interface {

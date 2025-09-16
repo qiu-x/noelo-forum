@@ -163,6 +163,7 @@ func (s *Storage) AddPost(username, postName, text string) error {
 			filepath.Join(postDir, "text"):          text,
 			filepath.Join(postDir, "title"):         postName,
 			filepath.Join(postDir, "creation_date"): time.Now().Format("2006-01-02 15:04"),
+			filepath.Join(postDir, "upvotes"):       "0",
 		},
 	)
 	if err != nil {
@@ -170,6 +171,32 @@ func (s *Storage) AddPost(username, postName, text string) error {
 	}
 
 	_ = s.updateRecents("/" + username + "/post:" + strconv.Itoa(id))
+
+	return nil
+}
+
+func (s *Storage) AddVote(username, vote, location string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, resourcePath, _, err := parseUserResourceURI(location)
+	if err != nil {
+		return fmt.Errorf("failed to parse vote location: %w", err)
+	}
+
+	upvotes, err := os.ReadFile(filepath.Join(resourcePath, "upvotes"))
+
+	if err != nil {
+		upvotes = []byte("0")
+	}
+
+	votes, err := strconv.Atoi(string(upvotes))
+	votes = votes + 1
+
+	err = os.WriteFile(filepath.Join(resourcePath, "upvotes"), []byte(strconv.Itoa(votes)), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to save upvote location: %w", err)
+	}
 
 	return nil
 }
@@ -267,6 +294,10 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return tmpl.TextPost{}, fmt.Errorf("failed to get post comments: %w", err)
 	}
+	upvotes, err := os.ReadFile(filepath.Join(resourcePath, "upvotes"))
+	if err != nil {
+		upvotes = []byte("0")
+	}
 
 	return tmpl.TextPost{
 		Location:     uri,
@@ -275,6 +306,7 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 		Author:       user,
 		CreationDate: string(creation_date),
 		Comments:     comments,
+		Upvotes:      string(upvotes),
 	}, nil
 }
 
