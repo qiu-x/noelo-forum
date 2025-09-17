@@ -25,49 +25,53 @@ func LogoutHandler(ses *session.Sessions) http.Handler {
 	})
 }
 
-func UserContentHandler(ses *session.Sessions, strg *storage.Storage) http.Handler {
+func UserContentPost(ses *session.Sessions, strg *storage.Storage) http.Handler {
 	return http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
-		switch r.Method {
-		case http.MethodPost:
-			if r.FormValue("type") == "comment" {
-				CommentAction(ses, strg, w, r)
-				//TODO: add checking type and make a VoteAction func
-			}
-		case http.MethodGet:
-			UserContent(ses, strg, w, r)
+		switch r.FormValue("type") {
+		case "comment":
+			CommentAction(ses, strg, w, r)
 		default:
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
-				http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte("400 bad request"))
+			if err != nil {
+				log.Println("Failed to write 400 response")
+			}
+			log.Println("400: Bad Request: Wrong `type` field of incoming request")
+			return
 		}
 	})
 }
 
-func UserContent(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
-	resourceType, err := storage.TypeFromURI(r.URL.Path)
-	if err != nil {
-		NotFoundHandler(w, r)
-		return
-	}
-
-	switch resourceType {
-	case storage.USER_RESOURCE:
-		username := strings.FieldsFunc(r.URL.Path, func(c rune) bool {
-			return c == '/'
-		})[0]
-		renderUserPage(ses, strg, username, w, r)
-	case storage.POST_RESOURCE:
-		renderPost(ses, strg, r.URL.Path, "", w, r)
-	case storage.COMMENT_RESOURCE:
-		// TODO: render standalone comments with replies (direct link to comment)
-		// renderComment(resourcePath, user, w)
-		panic("unimplemented!")
-	default:
-		NotFoundHandler(w, r)
-		return
-	}
+func UserContentGet(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		resourceType, err := storage.TypeFromURI(r.URL.Path)
+		if err != nil {
+			NotFoundHandler(w, r)
+			return
+		}
+		switch resourceType {
+		case storage.USER_RESOURCE:
+			username := strings.FieldsFunc(r.URL.Path, func(c rune) bool {
+				return c == '/'
+			})[0]
+			renderUserPage(ses, strg, username, w, r)
+		case storage.POST_RESOURCE:
+			renderPost(ses, strg, r.URL.Path, "", w, r)
+		case storage.COMMENT_RESOURCE:
+			// TODO: render standalone comments with replies (direct link to comment)
+			// renderComment(resourcePath, user, w)
+			panic("unimplemented!")
+		default:
+			NotFoundHandler(w, r)
+			return
+		}
+	})
 }
 
 func renderUserPage(
