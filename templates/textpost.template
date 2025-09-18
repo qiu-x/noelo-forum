@@ -15,8 +15,9 @@
     <article>{{ .Text }}</article>
   </div>
   <br>
-  <form action="/comment" method="post">
-    <input type="hidden" id="location" name="location" value="{{ .Location }}"> 
+  <form action="/u{{ .Location }}" method="post">
+    <input type="hidden" id="type" name="type" value="comment">
+    <input type="hidden" id="location" name="location" value="{{ .Location }}">
     <div style="width: 100%;">
       <textarea rows="4" name="comment" id="comment"></textarea>
     </div>

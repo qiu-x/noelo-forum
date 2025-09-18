@@ -25,7 +25,27 @@ func LogoutHandler(ses *session.Sessions) http.Handler {
 	})
 }
 
-func UserContent(ses *session.Sessions, strg *storage.Storage) http.Handler {
+func UserContentPost(ses *session.Sessions, strg *storage.Storage) http.Handler {
+	return http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		switch r.FormValue("type") {
+		case "comment":
+			CommentAction(ses, strg, w, r)
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte("400 bad request"))
+			if err != nil {
+				log.Println("Failed to write 400 response")
+			}
+			log.Println("400: Bad Request: Wrong `type` field of incoming request")
+			return
+		}
+	})
+}
+
+func UserContentGet(ses *session.Sessions, strg *storage.Storage) http.Handler {
 	return http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -35,7 +55,6 @@ func UserContent(ses *session.Sessions, strg *storage.Storage) http.Handler {
 			NotFoundHandler(w, r)
 			return
 		}
-
 		switch resourceType {
 		case storage.USER_RESOURCE:
 			username := strings.FieldsFunc(r.URL.Path, func(c rune) bool {
@@ -131,49 +150,44 @@ func renderPost(
 	}
 }
 
-func CommentAction(ses *session.Sessions, strg *storage.Storage) http.Handler {
-	return http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
-		location := r.FormValue("location")
-		text := r.FormValue("comment")
+func CommentAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
+	location := r.FormValue("location")
+	text := r.FormValue("comment")
 
-		sessionCookie, err := r.Cookie(session.SessionCookie)
-		if err != nil {
-			log.Println("Error: auth failed")
-			renderPost(ses, strg, location, "auth failed", w, r)
-			return
-		}
-		username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
-		if !isLoggedIn {
-			log.Println("Error: not logged in")
-			renderPost(ses, strg, location, "not logged in", w, r)
-			return
-		}
+	sessionCookie, err := r.Cookie(session.SessionCookie)
+	if err != nil {
+		log.Println("Error: auth failed")
+		renderPost(ses, strg, location, "auth failed", w, r)
+		return
+	}
+	username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
+	if !isLoggedIn {
+		log.Println("Error: not logged in")
+		renderPost(ses, strg, location, "not logged in", w, r)
+		return
+	}
 
-		if strings.TrimSpace(text) == "" {
-			log.Println("Error while adding comment: text is empty")
-			renderPost(ses, strg, location, "Please make sure the text include at least one letter and isn't just empty.", w, r)
-			return
-		}
+	if strings.TrimSpace(text) == "" {
+		log.Println("Error while adding comment: text is empty")
+		renderPost(ses, strg, location, "Please make sure the text include at least one letter and isn't just empty.", w, r)
+		return
+	}
 
-		id, err := strg.AddComment(username, text, location)
-		if err != nil {
-			log.Println("Error: ", err)
-			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
-			return
-		}
+	id, err := strg.AddComment(username, text, location)
+	if err != nil {
+		log.Println("Error: ", err)
+		renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
+		return
+	}
 
-		err = strg.AddCommentRef(username, location, location, "comments", id)
-		if err != nil {
-			log.Println("Error: ", err)
-			renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
-			return
-		}
+	err = strg.AddCommentRef(username, location, location, "comments", id)
+	if err != nil {
+		log.Println("Error: ", err)
+		renderPost(ses, strg, location, fmt.Sprint("Error: ", err), w, r)
+		return
+	}
 
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
-	})
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
 }
 
 func ReplyAction(ses *session.Sessions, strg *storage.Storage) http.Handler {
