@@ -17,8 +17,7 @@
       <input type="hidden" id="type" name="type" value="vote">
       <input type="hidden", id="location" name="location" value="{{ .Location }}">
       <input type="hidden", id="vote" name="vote" value="1">
-      <input type="hidden", id="author" name="author" value="{{ .Author }}">
-      <button type="submit">^</button>
+       <button type="submit">^</button>
     </form>
     <br>
     <article>{{ .Text }}</article>
