@@ -158,12 +158,13 @@ func (s *Storage) AddPost(username, postName, text string) error {
 		[]string{
 			postDir,
 			filepath.Join(postDir, "comments"),
+			filepath.Join(postDir, "votes"),
 		},
 		map[string]string{
 			filepath.Join(postDir, "text"):          text,
 			filepath.Join(postDir, "title"):         postName,
 			filepath.Join(postDir, "creation_date"): time.Now().Format("2006-01-02 15:04"),
-			filepath.Join(postDir, "upvotes"):       "",
+			filepath.Join(postDir, "vote_cache"):    "0",
 		},
 	)
 	if err != nil {
@@ -175,7 +176,35 @@ func (s *Storage) AddPost(username, postName, text string) error {
 	return nil
 }
 
-func (s *Storage) RemoveVote(username, location string, votes string) error {
+func (s *Storage) CheckVote(username, location string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, resourcePath, _, err := parseUserResourceURI(location)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse vote location: %w", err)
+	}
+	votePath := filepath.Join(resourcePath, "votes")
+
+	if _, err := os.Stat(votePath); os.IsNotExist(err) {
+		if err := os.Mkdir(votePath, 0750); err != nil {
+			return "", fmt.Errorf("failed to create dir %s: %w", votePath, err)
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(votePath, username)); os.IsNotExist(err) {
+		return "0", nil
+	}
+
+	vote_type, err := os.ReadFile(filepath.Join(votePath, username))
+	if err != nil {
+		return "", fmt.Errorf("Failed to read file: %w", err)
+	}
+
+	return string(vote_type), nil
+}
+
+func (s *Storage) AddVote(username, vote_type, location string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -183,17 +212,23 @@ func (s *Storage) RemoveVote(username, location string, votes string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse vote location: %w", err)
 	}
+	votePath := filepath.Join(resourcePath, "votes")
 
-	tmp := strings.ReplaceAll(votes, username+"\n", "")
-
-	err = os.WriteFile(filepath.Join(resourcePath, "upvotes"), []byte(tmp), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to save upvote location: %w", err)
+	if _, err := os.Stat(votePath); os.IsNotExist(err) {
+		if err := os.Mkdir(votePath, 0750); err != nil {
+			return fmt.Errorf("failed to create dir %s: %w", votePath, err)
+		}
 	}
+
+	err = os.WriteFile(filepath.Join(resourcePath, "votes/", username), []byte(vote_type), 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to update vote for user '%s': %w", username, err)
+	}
+
 	return nil
 }
 
-func (s *Storage) AddVote(username, vote, location string) error {
+func (s *Storage) UpdateVoteCache(cache_update, location string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -202,16 +237,24 @@ func (s *Storage) AddVote(username, vote, location string) error {
 		return fmt.Errorf("failed to parse vote location: %w", err)
 	}
 
-	f, err := os.OpenFile(filepath.Join(resourcePath, "upvotes"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	vote_cache, err := os.ReadFile(filepath.Join(resourcePath, "vote_cache"))
 	if err != nil {
-		return fmt.Errorf("Failed to open file %s: %w", f.Name(), err)
+		vote_cache = []byte("0") //TODO: make function to count up the votes if there are any already in the folder
 	}
-	if _, err := f.Write([]byte(username + "\n")); err != nil {
-		return fmt.Errorf("Failed to write to file %s: %w", f.Name(), err)
+	votes, err := strconv.Atoi(string(vote_cache))
+	if err != nil {
+		return fmt.Errorf("Failed to convert votes from byte to string: %w", err)
+	}
 
+	update_amount, err := strconv.Atoi(cache_update)
+	if err != nil {
+		return fmt.Errorf("Failed to convert vote cache update amount: %w", err)
 	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("Failed to close file %s: %w", f.Name(), err)
+
+	votes = votes + update_amount
+	err = os.WriteFile(filepath.Join(resourcePath, "vote_cache"), []byte(strconv.Itoa(votes)), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to save upvote location: %w", err)
 	}
 
 	return nil
@@ -310,9 +353,9 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return tmpl.TextPost{}, fmt.Errorf("failed to get post comments: %w", err)
 	}
-	upvotes, err := os.ReadFile(filepath.Join(resourcePath, "upvotes"))
+	votes, err := os.ReadFile(filepath.Join(resourcePath, "vote_cache"))
 	if err != nil {
-		upvotes = []byte("0")
+		votes = []byte("0")
 	}
 
 	return tmpl.TextPost{
@@ -322,7 +365,7 @@ func (s *Storage) GetPost(uri string) (tmpl.TextPost, error) {
 		Author:       user,
 		CreationDate: string(creation_date),
 		Comments:     comments,
-		Upvotes:      string(upvotes),
+		Votes:        string(votes),
 	}, nil
 }
 

@@ -12,12 +12,18 @@
     <h2 style="text-wrap: auto"><a href="#">{{ .Title }}</a></h2>
     <p class="metadata creation-date">{{ .CreationDate }}</p>
     <p class="metadata">by {{ .Author }}</p>
-    <p class="metadata upvotes">upvotes: {{ .Upvotes }}</p>
+    <p class="metadata upvotes">upvotes: {{ .Votes }}</p>
     <form action="/u{{ .Location }}" method="post">
       <input type="hidden" id="type" name="type" value="vote">
       <input type="hidden", id="location" name="location" value="{{ .Location }}">
-      <input type="hidden", id="vote" name="vote" value="1">
-       <button type="submit">^</button>
+      <input type="hidden", id="vote_type" name="vote_type" value="+">
+       <button type="submit">▲</button>
+    </form>
+    <form action="/u{{ .Location }}" method="post">
+      <input type="hidden" id="type" name="type" value="vote">
+      <input type="hidden", id="location" name="location" value="{{ .Location }}">
+      <input type="hidden", id="vote_type" name="vote_type" value="-">
+       <button type="submit">▼</button>
     </form>
     <br>
     <article>{{ .Text }}</article>
