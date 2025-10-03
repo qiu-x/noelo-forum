@@ -189,15 +189,19 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 	}
 
 	if saved_vote != vote_type {
-		err = strg.AddVote(username, vote_type, location)
-		if err != nil {
-			return
-		}
 		update_amount := "2"
 		if saved_vote == "0" { // If the user is voting for the first time cache has to only update by 1
 			update_amount = "1"
 		}
 		err = strg.UpdateVoteCache(vote_type+update_amount, location)
+		if err != nil {
+			return
+		}
+
+		err = strg.AddVote(username, vote_type, location)
+		if err != nil {
+			return
+		}
 	}
 
 	//TODO: remove the redirect and make some css magic to show the upvote number changing client side

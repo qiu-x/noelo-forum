@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"forumapp/tmpl"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -228,6 +229,37 @@ func (s *Storage) AddVote(username, vote_type, location string) error {
 	return nil
 }
 
+func getVoteCacheSum(location string) ([]byte, error) {
+	_, resourcePath, _, err := parseUserResourceURI(location)
+	if err != nil {
+		return []byte("0"), fmt.Errorf("Failed to parse vote location: %w", err)
+	}
+	votePath := filepath.Join(resourcePath, "votes")
+	votesSum := 0
+
+	files, err := os.ReadDir(votePath)
+	if err != nil {
+		return []byte("0"), fmt.Errorf("Failed to read dir: %w", err)
+	}
+
+	for _, file := range files {
+		vote, err := os.ReadFile(filepath.Join(votePath + "/" + file.Name()))
+		if err != nil {
+			return []byte("0"), fmt.Errorf("Failed to read file: %w", err)
+		}
+
+		switch vote[0] {
+		case '+':
+			votesSum++
+		case '-':
+			votesSum--
+		default:
+			log.Println("Warning: wrong upvote symbol in file: ", votePath+"/"+file.Name(), " - skipping")
+		}
+	}
+	return []byte(strconv.Itoa(votesSum)), nil
+}
+
 func (s *Storage) UpdateVoteCache(cache_update, location string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -239,7 +271,7 @@ func (s *Storage) UpdateVoteCache(cache_update, location string) error {
 
 	vote_cache, err := os.ReadFile(filepath.Join(resourcePath, "vote_cache"))
 	if err != nil {
-		vote_cache = []byte("0") //TODO: make function to count up the votes if there are any already in the folder
+		vote_cache, err = getVoteCacheSum(location)
 	}
 	votes, err := strconv.Atoi(string(vote_cache))
 	if err != nil {
