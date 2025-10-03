@@ -183,15 +183,16 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 
 	if saved_vote == vote_type {
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+		return
 	}
 
 	update_amount := "2"
 	if saved_vote == "0" { // If the user is voting for the first time cache has to only update by 1
 		update_amount = "1"
 	}
-	err = strg.UpdateVoteCache(vote_type+update_amount, location)
-	errr := strg.AddVote(username, vote_type, location)
-	if errr == nil && err == nil {
+
+	if strg.UpdateVoteCache(vote_type+update_amount, location) == nil &&
+		strg.AddVote(username, vote_type, location) == nil {
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
 		return
 	}
