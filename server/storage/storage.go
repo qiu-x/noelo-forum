@@ -273,7 +273,7 @@ func (s *Storage) UpdateVoteCache(cache_update, location string) error {
 	if err != nil {
 		vote_cache, err = getVoteCacheSum(location)
 		if err != nil {
-			return fmt.Errorf("failed to get updated cache value")
+			return fmt.Errorf("failed to get updated cache value: %w", err)
 		}
 	}
 	votes, err := strconv.Atoi(string(vote_cache))

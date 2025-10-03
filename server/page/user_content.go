@@ -193,12 +193,9 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 		update_amount = "1"
 	}
 	err = strg.UpdateVoteCache(vote_type+update_amount, location)
-	if err != nil {
-		return
-	}
-
-	err = strg.AddVote(username, vote_type, location)
-	if err != nil {
+	errr := strg.AddVote(username, vote_type, location)
+	if errr == nil && err == nil {
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
 		return
 	}
 
