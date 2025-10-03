@@ -168,9 +168,6 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 		renderPost(ses, strg, location, "not logged in", w, r)
 		return
 	}
-	if username == "" {
-		return
-	}
 	if vote_type != "+" && vote_type != "-" {
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := w.Write([]byte("400 bad request"))
@@ -179,7 +176,6 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 		}
 		log.Println("400: Bad Request: Wrong `vote_type` of incoming request")
 		return
-
 	}
 
 	saved_vote, err := strg.CheckVote(username, location)
@@ -188,20 +184,22 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 		return
 	}
 
-	if saved_vote != vote_type {
-		update_amount := "2"
-		if saved_vote == "0" { // If the user is voting for the first time cache has to only update by 1
-			update_amount = "1"
-		}
-		err = strg.UpdateVoteCache(vote_type+update_amount, location)
-		if err != nil {
-			return
-		}
+	if saved_vote == vote_type {
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+	}
 
-		err = strg.AddVote(username, vote_type, location)
-		if err != nil {
-			return
-		}
+	update_amount := "2"
+	if saved_vote == "0" { // If the user is voting for the first time cache has to only update by 1
+		update_amount = "1"
+	}
+	err = strg.UpdateVoteCache(vote_type+update_amount, location)
+	if err != nil {
+		return
+	}
+
+	err = strg.AddVote(username, vote_type, location)
+	if err != nil {
+		return
 	}
 
 	//TODO: remove the redirect and make some css magic to show the upvote number changing client side

@@ -199,7 +199,7 @@ func (s *Storage) CheckVote(username, location string) (string, error) {
 
 	vote_type, err := os.ReadFile(filepath.Join(votePath, username))
 	if err != nil {
-		return "", fmt.Errorf("Failed to read file: %w", err)
+		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
 	return string(vote_type), nil
@@ -223,7 +223,7 @@ func (s *Storage) AddVote(username, vote_type, location string) error {
 
 	err = os.WriteFile(filepath.Join(resourcePath, "votes/", username), []byte(vote_type), 0644)
 	if err != nil {
-		return fmt.Errorf("Failed to update vote for user '%s': %w", username, err)
+		return fmt.Errorf("failed to update vote for user '%s': %w", username, err)
 	}
 
 	return nil
@@ -232,20 +232,20 @@ func (s *Storage) AddVote(username, vote_type, location string) error {
 func getVoteCacheSum(location string) ([]byte, error) {
 	_, resourcePath, _, err := parseUserResourceURI(location)
 	if err != nil {
-		return []byte("0"), fmt.Errorf("Failed to parse vote location: %w", err)
+		return []byte("0"), fmt.Errorf("failed to parse vote location: %w", err)
 	}
 	votePath := filepath.Join(resourcePath, "votes")
 	votesSum := 0
 
 	files, err := os.ReadDir(votePath)
 	if err != nil {
-		return []byte("0"), fmt.Errorf("Failed to read dir: %w", err)
+		return []byte("0"), fmt.Errorf("failed to read dir: %w", err)
 	}
 
 	for _, file := range files {
-		vote, err := os.ReadFile(filepath.Join(votePath + "/" + file.Name()))
+		vote, err := os.ReadFile(filepath.Join(votePath, file.Name()))
 		if err != nil {
-			return []byte("0"), fmt.Errorf("Failed to read file: %w", err)
+			return []byte("0"), fmt.Errorf("failed to read file: %w", err)
 		}
 
 		switch vote[0] {
@@ -272,18 +272,21 @@ func (s *Storage) UpdateVoteCache(cache_update, location string) error {
 	vote_cache, err := os.ReadFile(filepath.Join(resourcePath, "vote_cache"))
 	if err != nil {
 		vote_cache, err = getVoteCacheSum(location)
+		if err != nil {
+			return fmt.Errorf("failed to get updated cache value")
+		}
 	}
 	votes, err := strconv.Atoi(string(vote_cache))
 	if err != nil {
-		return fmt.Errorf("Failed to convert votes from byte to string: %w", err)
+		return fmt.Errorf("failed to convert votes from byte to string: %w", err)
 	}
 
 	update_amount, err := strconv.Atoi(cache_update)
 	if err != nil {
-		return fmt.Errorf("Failed to convert vote cache update amount: %w", err)
+		return fmt.Errorf("failed to convert vote cache update amount: %w", err)
 	}
 
-	votes = votes + update_amount
+	votes += update_amount
 	err = os.WriteFile(filepath.Join(resourcePath, "vote_cache"), []byte(strconv.Itoa(votes)), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to save upvote location: %w", err)
