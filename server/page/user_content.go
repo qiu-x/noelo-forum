@@ -170,10 +170,7 @@ func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWri
 	}
 	if vote_type != "+" && vote_type != "-" {
 		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write([]byte("400 bad request"))
-		if err != nil {
-			log.Println("Failed to write 400 response")
-		}
+		_, _ = w.Write([]byte("400 bad request"))
 		log.Println("400: Bad Request: Wrong `vote_type` of incoming request")
 		return
 	}
