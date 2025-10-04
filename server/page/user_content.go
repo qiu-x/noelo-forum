@@ -33,6 +33,8 @@ func UserContentPost(ses *session.Sessions, strg *storage.Storage) http.Handler 
 		switch r.FormValue("type") {
 		case "comment":
 			CommentAction(ses, strg, w, r)
+		case "vote":
+			VoteAction(ses, strg, w, r)
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte("400 bad request"))
@@ -150,11 +152,60 @@ func renderPost(
 	}
 }
 
+func VoteAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
+	location := r.FormValue("location")
+	vote_type := r.FormValue("vote_type")
+
+	sessionCookie, err := r.Cookie(session.SessionCookie)
+	if err != nil {
+		log.Println("Error: auth failed")
+		renderPost(ses, strg, location, "auth failed", w, r)
+		return
+	}
+	username, isLoggedIn := ses.CheckAuth(sessionCookie.Value)
+	if !isLoggedIn {
+		log.Println("Error: not logged in")
+		renderPost(ses, strg, location, "not logged in", w, r)
+		return
+	}
+	if vote_type != "+" && vote_type != "-" {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("400 bad request"))
+		log.Println("400: Bad Request: Wrong `vote_type` of incoming request")
+		return
+	}
+
+	saved_vote, err := strg.CheckVote(username, location)
+	if err != nil {
+		log.Println("Error: ", err)
+		return
+	}
+
+	if saved_vote == vote_type {
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+		return
+	}
+
+	update_amount := "2"
+	if saved_vote == "0" { // If the user is voting for the first time cache has to only update by 1
+		update_amount = "1"
+	}
+
+	if strg.UpdateVoteCache(vote_type+update_amount, location) == nil &&
+		strg.AddVote(username, vote_type, location) == nil {
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+		return
+	}
+
+	//TODO: remove the redirect and make some css magic to show the upvote number changing client side
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusFound)
+}
+
 func CommentAction(ses *session.Sessions, strg *storage.Storage, w http.ResponseWriter, r *http.Request) {
 	location := r.FormValue("location")
 	text := r.FormValue("comment")
-
 	sessionCookie, err := r.Cookie(session.SessionCookie)
+
 	if err != nil {
 		log.Println("Error: auth failed")
 		renderPost(ses, strg, location, "auth failed", w, r)

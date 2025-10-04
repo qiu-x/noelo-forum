@@ -94,6 +94,13 @@ a {
   max-width: 15%;
 }
 
+.upvotes {
+  position: absolute;
+  top: 25px;
+  right: 0;
+  max-width: 15%
+}
+
 .reply-checkbox {
     display: none;
 }
