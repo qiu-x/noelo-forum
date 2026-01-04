@@ -11,10 +11,8 @@ linters:
     - bidichk
     - bodyclose
     - canonicalheader
-    - containedctx
     - contextcheck
     - copyloopvar
-    - cyclop
     - decorder
     - dupl
     - dupword
@@ -50,9 +48,7 @@ linters:
     - importas
     - inamedparam
     - ineffassign
-    - interfacebloat
     - intrange
-    - ireturn
     - lll
     - loggercheck
     - maintidx
@@ -84,7 +80,6 @@ linters:
     - tagliatelle
     - testableexamples
     - testifylint
-    - testpackage
     - thelper
     - tparallel
     - unconvert

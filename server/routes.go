@@ -25,7 +25,7 @@ func ServeFile(name string) http.Handler {
 	})
 }
 
-func addRoutes(mux *http.ServeMux, sessions *session.Sessions, strg *storage.Storage) {
+func addRoutes(mux *http.ServeMux, sessions *session.Sessions, store *storage.Store) {
 	// Static content
 	fs := http.FileServer(http.Dir("../content/"))
 	mux.Handle("GET /content/", http.StripPrefix("/content", FileServerFilter(fs)))
@@ -34,12 +34,12 @@ func addRoutes(mux *http.ServeMux, sessions *session.Sessions, strg *storage.Sto
 
 	// Dynamic content
 	mux.Handle("/", page.MainPageHandler())
-	mux.Handle("GET /active", page.ActiveHandler(sessions, strg))
-	mux.Handle("GET /u/", http.StripPrefix("/u", page.UserContentGet(sessions, strg)))
-	mux.Handle("POST /u/", http.StripPrefix("/u", page.UserContentPost(sessions, strg)))
+	mux.Handle("GET /active", page.ActiveHandler(sessions, store))
+	mux.Handle("GET /u/", http.StripPrefix("/u", page.UserContentGet(sessions, store)))
+	mux.Handle("POST /u/", http.StripPrefix("/u", page.UserContentPost(sessions, store)))
 	mux.Handle("GET /logout", page.LogoutHandler(sessions))
-	mux.Handle("POST /reply", page.ReplyAction(sessions, strg))
-	mux.Handle("/login", page.LoginHandler(sessions))
-	mux.Handle("/register", page.RegisterHandler(sessions, strg))
-	mux.Handle("/addpost", page.AddPostHandler(sessions, strg))
+	mux.Handle("POST /reply", page.ReplyAction(sessions, store))
+	mux.Handle("/login", page.LoginHandler(sessions, store))
+	mux.Handle("/register", page.RegisterHandler(sessions, store))
+	mux.Handle("/addpost", page.AddPostHandler(sessions, store))
 }

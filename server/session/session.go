@@ -2,14 +2,9 @@ package session
 
 import (
 	"math/rand"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 const SessionCookie = "session_token"
@@ -48,27 +43,16 @@ func (s *Sessions) CheckAuth(sessionToken string) (string, bool) {
 	return "", false
 }
 
-func (s *Sessions) Auth(username, pass string) (string, error) {
+// CreateSession creates a session token for an authenticated username
+func (s *Sessions) CreateSession(username string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Sanitize username
-	username = strings.ReplaceAll(username, "/", "∕")
-
-	userdir := filepath.Join("../storage/users/", username)
-	storedPass, _ := os.ReadFile(filepath.Join(userdir, "/pass"))
-
-	err := bcrypt.CompareHashAndPassword(storedPass, []byte(pass))
-	if err != nil {
-		return "", err
-	}
-
 	sessionToken := generateSessionToken()
-
 	s.sessions[sessionToken] = session{
 		username: username,
 	}
-	return sessionToken, nil
+	return sessionToken
 }
 
 func (s *Sessions) Logout(sessionToken string) {
