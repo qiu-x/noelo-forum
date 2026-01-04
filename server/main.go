@@ -27,9 +27,9 @@ type Config struct {
 func newConfig(args []string) (Config, error) {
 	var cfg Config
 	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
-	err := flags.Parse(args[1:])
 	flags.StringVar(&cfg.Host, "host", "0.0.0.0", "Application Host IP")
 	flags.StringVar(&cfg.Port, "port", "8080", "Application Port")
+	err := flags.Parse(args[1:])
 	if err != nil {
 		return Config{}, err
 	}
@@ -39,17 +39,29 @@ func newConfig(args []string) (Config, error) {
 func NewServer(
 	logger *slog.Logger,
 	ses *session.Sessions,
-	strg *storage.Storage,
+	store *storage.Store,
 ) http.Handler {
 	mux := http.NewServeMux()
 	addRoutes(
 		mux,
 		ses,
-		strg,
+		store,
 	)
 	var handler http.Handler = mux
 	handler = LoggerMiddleware(logger, handler)
 	return handler
+}
+
+func getCouchDBConfigFromEnv() (dsn, dbName string) {
+	dsn = os.Getenv("COUCHDB_DSN")
+	if dsn == "" {
+		dsn = "http://admin:3344@localhost:5984" // dev default
+	}
+	dbName = os.Getenv("COUCHDB_DB")
+	if dbName == "" {
+		dbName = "forum"
+	}
+	return
 }
 
 func run(ctx context.Context, w io.Writer, e io.Writer, args []string) error {
@@ -61,18 +73,24 @@ func run(ctx context.Context, w io.Writer, e io.Writer, args []string) error {
 		_, _ = fmt.Fprintf(e, "error parsing cmd args: %s\n", err)
 	}
 
-	strg, err := storage.NewStorage()
-	if err != nil {
-		_, _ = fmt.Fprintf(e, "failed to initialize storage: %s\n", err)
-	}
-
 	logger := slog.New(tint.NewHandler(w, nil))
 	sessions := session.NewSessions()
+
+	// Initialize CouchDB backend from environment
+	couchDSN, couchDB := getCouchDBConfigFromEnv()
+	db, err := storage.ConnectCouchDB(ctx, couchDSN, couchDB)
+	if err != nil {
+		_, _ = fmt.Fprintf(e, "failed to connect to CouchDB: %s\n", err)
+		return err
+	}
+
+	backend := storage.NewCouchBackend(db, logger)
+	store := storage.NewStore(storage.WithBackend(backend))
 
 	srv := NewServer(
 		logger,
 		sessions,
-		strg,
+		store,
 	)
 	httpServer := &http.Server{
 		Addr:           net.JoinHostPort(cfg.Host, cfg.Port),

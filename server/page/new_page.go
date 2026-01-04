@@ -10,14 +10,14 @@ import (
 	"strings"
 )
 
-func AddPostHandler(ses *session.Sessions, strg *storage.Storage) http.Handler {
+func AddPostHandler(ses *session.Sessions, store *storage.Store) http.Handler {
 	return http.HandlerFunc(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
 		switch r.Method {
 		case http.MethodPost:
-			addPostAction(ses, strg, w, r)
+			addPostAction(ses, store, w, r)
 		case http.MethodGet:
 			addPostPage(ses, w, r, "", "", "")
 		default:
@@ -54,7 +54,9 @@ func addPostPage(
 		return
 	}
 
-	page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
+	rawUsername, ok := ses.CheckAuth(sessionCookie.Value)
+	page.IsLoggedIn = ok
+	page.Username = storage.UserNameFromID(storage.UserID(rawUsername))
 
 	if !page.IsLoggedIn {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -73,7 +75,7 @@ func addPostPage(
 
 func addPostAction(
 	ses *session.Sessions,
-	strg *storage.Storage,
+	store *storage.Store,
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -108,8 +110,10 @@ func addPostAction(
 		return
 	}
 
-	err = strg.AddPost(username, title, text)
+	tx := store.With(r.Context())
+	authorID := storage.UserID(username)
 
+	_, err = tx.CreatePost(authorID, title, text)
 	if err != nil {
 		log.Println("Error while adding post:", err)
 		addPostPage(ses, w, r, "An unexpected error has occurred", title, text)

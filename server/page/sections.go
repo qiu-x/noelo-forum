@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-func ActiveHandler(ses *session.Sessions, strg *storage.Storage) http.Handler {
+func ActiveHandler(ses *session.Sessions, store *storage.Store) http.Handler {
 	// Precompute template
 	t := template.Must(template.ParseFiles(
 		"../templates/page.template",
@@ -21,8 +21,15 @@ func ActiveHandler(ses *session.Sessions, strg *storage.Storage) http.Handler {
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
+		tx := store.With(r.Context())
+		posts, err := tx.ListPosts(storage.RecentOnly(), storage.WithLimit(10))
+		if err != nil {
+			log.Println("Failed to fetch recent posts:", err)
+			posts = []storage.Post{}
+		}
+
 		article_list_tmpl := tmpl.ActiveSection{
-			TextPosts: strg.GetRecentlyActive(10),
+			TextPosts: convertPostsToTextPosts(posts),
 		}
 
 		page := tmpl.SectionPage[tmpl.ActiveSection]{
@@ -32,7 +39,9 @@ func ActiveHandler(ses *session.Sessions, strg *storage.Storage) http.Handler {
 
 		sessionCookie, err := r.Cookie(session.SessionCookie)
 		if err == nil {
-			page.Username, page.IsLoggedIn = ses.CheckAuth(sessionCookie.Value)
+			rawUsername, ok := ses.CheckAuth(sessionCookie.Value)
+			page.IsLoggedIn = ok
+			page.Username = storage.UserNameFromID(storage.UserID(rawUsername))
 		}
 
 		err = t.Execute(w, page)
